@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Brings the running stack in line with the checked-out code. Run after any git checkout,
-# pull or rebase. Does only what changed, so it costs about a second when nothing did.
+# pull or rebase. Updates only what changed, then restarts the workers and checks that they are up.
 
 set -uo pipefail
 
@@ -58,6 +58,10 @@ fi
 # Long-lived workers keep the old code in memory.
 if [ "${1:-}" != "--no-restart" ]; then
     restart_workers
+    for worker in $(workers_not_up); do
+        echo "$worker: FAILED, it is not up, see $LOG_DIR/$worker.log"
+        failed=1
+    done
 fi
 
 exit "$failed"

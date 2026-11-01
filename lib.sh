@@ -127,7 +127,7 @@ start_mailpit() {
 start_workers() {
     local name command
 
-    while IFS='|' read -r name command; do
+    while IFS='|' read -r name command _; do
         pgrep -f "$command" >/dev/null && continue
         # The redirect is on the whole subshell: anything left holding the caller's stdout makes
         # `cloud-sync | tail` wait for as long as the worker lives.
@@ -142,7 +142,7 @@ start_workers() {
 restart_workers() {
     local name command attempt
 
-    while IFS='|' read -r name command; do
+    while IFS='|' read -r name command _; do
         pkill -f "$command" >/dev/null 2>&1
         for attempt in $(seq 1 20); do
             pgrep -f "$command" >/dev/null || break
@@ -152,6 +152,29 @@ restart_workers() {
     done < <(background_workers)
 
     start_workers
+}
+
+# Prints the name of each worker that is not up. A worker that dies at boot tells nobody, and one
+# still booting refuses connections, so a caller waits here before it goes on.
+workers_not_up() {
+    local workers name command port attempt
+
+    workers="$(background_workers)"
+    [ -n "$workers" ] || return 0
+
+    # A new process does not show its command yet, and a boot that fails needs time to fail.
+    sleep 2
+
+    while IFS='|' read -r name command port; do
+        for attempt in $(seq 1 40); do
+            pgrep -f "$command" >/dev/null || break
+            if [ -z "$port" ] || (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
+                continue 2
+            fi
+            sleep 0.25
+        done
+        echo "$name"
+    done <<<"$workers"
 }
 
 # Hash of what decides whether a dependency install or a build must run again.

@@ -17,6 +17,7 @@ install_demo_data() {
     php artisan db:seed --class=DemoSeeder --force --no-interaction
 }
 
+# <name>|<command>|<port>. Leave the port out for a worker that does not listen on one.
 background_workers() {
     cat <<'EOF'
 horizon|php artisan horizon

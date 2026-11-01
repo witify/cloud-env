@@ -34,7 +34,9 @@ install_demo_data() {
     return 0
 }
 
-# Long-running workers, one per line: <name>|<command>
+# Long-running workers, one per line: <name>|<command>|<port>. The command must show in `ps` as written,
+# and must not be a part of another worker's command. Give the port of a worker that listens on
+# 127.0.0.1: the check waits about 10 s for it. A worker with no port is checked once, 2 s after it starts.
 background_workers() {
     return 0
 }

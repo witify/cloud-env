@@ -21,6 +21,8 @@ PUSH_TO_PROTECTED = re.compile(GIT_PUSH + r'[^|;&]*[\s:+"\'](refs/heads/)?(' + P
 PUSH_DELETE = re.compile(GIT_PUSH + r'[^|;&]*(\s--delete\b|\s-d\s|\s:\S)')
 PUSH_EVERYTHING = re.compile(GIT_PUSH + r'[^|;&]*\s--(all|mirror)\b')
 SKIP_GIT_HOOK = re.compile(r'\bgit\b[^|;&]*\s(--no-verify|-n\b.*\bpush)|core\.hookspath', re.IGNORECASE)
+# The whole command must match: any other text can hide a value from a check that reads text.
+HOOK_SETTING_READ = re.compile(r'git config( --system| --get| --show-origin| --show-scope)* core\.hooksPath')
 MERGE = re.compile(r'\bgh\s+pr\s+merge\b')
 WORKFLOW_FILE = re.compile(r'(^|/)\.github/workflows/')
 WORKFLOW_WRITE = re.compile(r'(>|\btee\b|\bsed\s+-i\b|\bmv\b|\bcp\b|\brm\b|\bgit\s+rm\b)[^|;&]*\.github/workflows/')
@@ -135,7 +137,7 @@ def check_gh_api(command):
 def check_bash(command, directory):
     if MERGE.search(command):
         deny(MERGE_REASON)
-    if SKIP_GIT_HOOK.search(command):
+    if SKIP_GIT_HOOK.search(command) and not HOOK_SETTING_READ.fullmatch(command.strip()):
         deny(HOOK_REASON)
     if PUSH_DELETE.search(command):
         deny(DELETE_REASON)

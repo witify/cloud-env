@@ -27,6 +27,9 @@ start_mailpit
 
 sync_output="$("$CLOUD_DIR/bin/cloud-sync" --no-restart 2>&1)"
 start_workers
+for worker in $(workers_not_up); do
+    problems="$problems $worker"
+done
 
 site_status="$(curl -s -o /dev/null -m 20 -w '%{http_code}' "$SITE_URL$SITE_CHECK_PATH")"
 [ "$site_status" = "200" ] || problems="$problems site(http-$site_status)"
@@ -53,7 +56,7 @@ echo "## State of this VM"
 echo "- Started in $(($(date +%s) - started)) s. Snapshot made at $(cat "$STATE_DIR/setup-finished-at" 2>/dev/null || echo unknown)."
 echo "- Checkout: $(git rev-parse --short HEAD) on $(git branch --show-current 2>/dev/null | grep . || echo 'detached HEAD')."
 [ -n "$sync_output" ] && echo "- Sync: $sync_output"
-[ -n "$problems" ] && echo "- PROBLEM, not running:$problems. Logs in $LOG_DIR/."
+[ -n "$problems" ] && echo "- PROBLEM, not up:$problems. Logs in $LOG_DIR/."
 [ -n "$failed_steps" ] && echo "- PROBLEM, setup steps that failed: $failed_steps. Logs in $LOG_DIR/."
 [ -z "$problems$failed_steps" ] && echo "- All services answer."
 

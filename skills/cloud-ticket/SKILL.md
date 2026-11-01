@@ -123,7 +123,7 @@ A change with no screen (a job, an import, a report) gets a proof in the report:
 4. **Add the same links to the pull request body**, with `mcp__github__update_pull_request`. A person must find the videos from either place.
 5. Move the parent and every ticket of the set to `in review`, and remove the tags `cloud-agent` and `ready-for-agent` from the parent. Never `Closed`: a person closes it after the merge. When `[PR n]` groups remain, say in the report how to start the next one: set the parent back to `todo` with the tag `ready-for-agent`.
 6. Add a comment that starts with `Agent :` and links the pull request. The connector writes as a person, so the prefix tells readers who wrote it.
-7. End with a notification and a short final message: PR url, video links, CI state, Codex state, the number of sub-agents, the `[PR n]` groups that remain, and every check you did not do. A check you did not run is reported as not run.
+7. End with a notification and a short final message: PR url, video links, CI state, Codex state, the sub-agents you started, by piece name from section 4, the `[PR n]` groups that remain, and every check you did not do. Give no total for the sub-agents: a count from memory can be wrong. A check you did not run is reported as not run.
 
 ## Limits
 

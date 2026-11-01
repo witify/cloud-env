@@ -27,7 +27,7 @@ A ticket with open product questions comes back to `todo` without its tag, with 
 | `environment-setup.sh` | Pasted in the environment dialog. Runs before Claude Code starts, when no snapshot exists. Clones this repository at a version, then calls `setup.sh` |
 | `setup.sh`, `defaults.sh`, `env.defaults` | Same. Install packages, dependencies, databases, demo data, assets and skills. The platform then snapshots the disk. About 3.5 minutes on a large project |
 | `session-start.sh`, `session-context.md` | A hook in the VM's `~/.claude/settings.json`, at every session start and resume. Starts the services, runs `cloud-sync`, gives the agent its context |
-| `bin/cloud-sync` | After every checkout. Does only what changed: Composer, npm, migrations, assets |
+| `bin/cloud-sync` | After every checkout. Updates only what changed: Composer, npm, migrations, assets. Then restarts the workers, checks that they are up, and says `FAILED` for a step or a worker that did not work |
 | `bin/demo-video`, `demo/` | When an agent records a video |
 | `hooks/guard-bash.py`, `git-hooks/pre-push` | Before every command and every push. Refuse a merge, a push to a release branch, a branch deletion, a change to `.github/workflows` |
 | `skills/cloud-ticket` | The ticket flow. It lives here, with the scripts it calls, so one version number covers both |
@@ -100,7 +100,7 @@ For an instant start, add an API trigger to the worker on the web, and call its 
 ## Change it
 
 - **A new version:** change `CLOUD_ENV_VERSION` in each environment's setup script. That text change also forces a new snapshot. There is no API for it, so a person or a browser agent edits the dialog. An environment stays on its version until then, so a bad release reaches one project at a time.
-- **A project value:** edit `.claude/cloud.sh`. Each session reads it at start. What only `setup.sh` uses, such as packages, needs a new snapshot: change the number in the setup script.
+- **A project value:** edit `.claude/cloud.sh`. Each session reads it at start. What only `setup.sh` uses, such as packages, needs a new snapshot: change the number in the setup script. A worker port needs `v1.0.1` or later, so change the version first: an older version takes the port as part of the command, and the worker does not start.
 - **A new host:** edit **Allowed domains**. Keep third-party systems that act on real accounts blocked: billing, payment, SMS and production APIs.
 
 ## Limits
