@@ -40,6 +40,7 @@ sed \
     -e "s#__ROOT_DIR__#$ROOT_DIR#g" \
     -e "s#__SITE_URL__#$SITE_URL#g" \
     -e "s#__PHP_VERSION__#$PHP_VERSION#g" \
+    -e "s#__MYSQL_VERSION__#$MYSQL_VERSION#g" \
     -e "s#__APP_DATABASE__#$APP_DATABASE#g" \
     -e "s#__TEST_DATABASE__#$TEST_DATABASE#g" \
     "$CLOUD_DIR/session-context.md"

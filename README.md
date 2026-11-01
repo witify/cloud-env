@@ -1,6 +1,6 @@
 # Witify cloud environment
 
-A Claude Code cloud session on this environment has what a MacBook has: MySQL 8.0, PHP, Redis, Mailpit, nginx, built assets, the project's workers, Laravel Boost, headless Chromium with video. A ClickUp ticket can go from A to Z there with no person watching.
+A Claude Code cloud session on this environment has what a MacBook has: MySQL, PHP, Redis, Mailpit, nginx, built assets, the project's workers, Laravel Boost, headless Chromium with video. A ClickUp ticket can go from A to Z there with no person watching.
 
 A project needs one file, `.claude/cloud.sh`, and everything else is here. Claude Code has no built-in way to share this: [cloud sessions do not install plugins, the base image cannot be replaced, and the environment's variables do not exist yet when the setup script runs](https://code.claude.com/docs/en/cloud-environments). So the setup script clones this public repository at a fixed version.
 
@@ -106,7 +106,7 @@ For an instant start, add an API trigger to the worker on the web, and call its 
 ## Limits
 
 - 4 vCPU, 16 GB, 30 GB. The VM is reclaimed when idle: push before waiting.
-- PHP 8.3 is what the image's apt sources ship. Another version needs its own source in `setup.sh`.
+- The image's apt sources ship PHP 8.3 and MySQL 8.0. A project sets `PHP_VERSION` or `MYSQL_VERSION` in `.claude/cloud.sh` for another one: `setup.sh` then adds the Ondřej Surý source for PHP, or the MySQL LTS source for MySQL.
 - No preview URL for a person: the videos replace it.
 - Sub-agents share one VM and one `test` database, so implement sub-agents run one after another. A sub-agent cannot start another sub-agent.
 

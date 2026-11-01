@@ -32,6 +32,9 @@
       "mcp__Claude_Code_Remote"
     ]
   },
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ],
   "disabledMcpjsonServers": [
     "herd"
   ],

@@ -13,6 +13,11 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 : >"$STATE_DIR/steps"
 date -u +%FT%TZ >"$STATE_DIR/setup-started-at"
 
+IMAGE_PHP_VERSION="8.3"
+IMAGE_MYSQL_VERSION="8.0"
+ONDREJ_PHP_KEY_URL="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xB8DC7E53946656EFBCE4C1DD71DAEAAB4AD4CAB6"
+MYSQL_KEY_URL="https://repo.mysql.com/RPM-GPG-KEY-mysql-2023"
+
 php_packages() {
     local extension
 
@@ -21,14 +26,41 @@ php_packages() {
     done
 }
 
+add_apt_source() {
+    local name="$1" key_url="$2" source="$3"
+
+    curl -fsSL "$key_url" | gpg --dearmor --yes -o "/usr/share/keyrings/$name.gpg" || return 1
+    echo "deb [signed-by=/usr/share/keyrings/$name.gpg] $source" >"/etc/apt/sources.list.d/$name.list"
+}
+
+add_version_sources() {
+    if [ "$PHP_VERSION" != "$IMAGE_PHP_VERSION" ]; then
+        add_apt_source ondrej-php "$ONDREJ_PHP_KEY_URL" "https://ppa.launchpadcontent.net/ondrej/php/ubuntu noble main" || return 1
+    fi
+    if [ "$MYSQL_VERSION" != "$IMAGE_MYSQL_VERSION" ]; then
+        add_apt_source mysql "$MYSQL_KEY_URL" "http://repo.mysql.com/apt/ubuntu noble mysql-$MYSQL_VERSION-lts" || return 1
+    fi
+}
+
+mysql_packages() {
+    if [ "$MYSQL_VERSION" = "$IMAGE_MYSQL_VERSION" ]; then
+        echo "mysql-server-$MYSQL_VERSION"
+    else
+        echo "mysql-community-server"
+    fi
+}
+
 install_system_packages() {
     # dpkg fsyncs every file by default. The VM has nothing to protect at this point.
     echo force-unsafe-io >/etc/dpkg/dpkg.cfg.d/unsafe-io
     printf 'path-exclude=/usr/share/doc/*\npath-exclude=/usr/share/man/*\n' >/etc/dpkg/dpkg.cfg.d/no-docs
 
+    add_version_sources || return 1
     apt-get update -qq || return 1
     # shellcheck disable=SC2046,SC2086
-    apt-get install -y -qq --no-install-recommends $(php_packages) $SYSTEM_PACKAGES $EXTRA_SYSTEM_PACKAGES || return 1
+    apt-get install -y -qq --no-install-recommends $(php_packages) $(mysql_packages) $SYSTEM_PACKAGES $EXTRA_SYSTEM_PACKAGES || return 1
+    # An image can hold another PHP, and the project's version must answer to `php`.
+    update-alternatives --set php "/usr/bin/php$PHP_VERSION" || return 1
 
     # Debian blocks PDF reads by default; spatie/pdf-to-image needs them.
     sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-*/policy.xml 2>/dev/null || true

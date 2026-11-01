@@ -18,3 +18,6 @@ generator.sprintify.app
 *.clickup-attachments.com
 *.loom.com
 *.happyscribe.com
+ppa.launchpadcontent.net
+keyserver.ubuntu.com
+repo.mysql.com

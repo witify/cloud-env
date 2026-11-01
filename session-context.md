@@ -5,7 +5,7 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 ## Stack
 - Repository: `__ROOT_DIR__`. Plain `php`, `composer` and `npm` work; `herd php` and `herd composer` also work through a shim.
 - Site: `__SITE_URL__` (nginx, php-fpm, PHP __PHP_VERSION__).
-- Also running: MySQL 8.0 (`root`, no password, databases `__APP_DATABASE__` and `__TEST_DATABASE__`), Redis, Mailpit (`http://localhost:8025`) and the workers of this project.
+- Also running: MySQL __MYSQL_VERSION__ (`root`, no password, databases `__APP_DATABASE__` and `__TEST_DATABASE__`), Redis, Mailpit (`http://localhost:8025`) and the workers of this project.
 - After any `git checkout`, `pull` or `rebase`: run `cloud-sync`. It installs dependencies, migrates both databases and rebuilds assets, only for what changed, and restarts the workers.
 - Assets are built, no Vite server runs. After a Vue change, `cloud-sync` or `npm run build -- --minify false`.
 

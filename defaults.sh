@@ -13,11 +13,13 @@ SITE_LOGIN_EMAIL=""
 SITE_LOGIN_PASSWORD=""
 SITE_LANDING_PATH="/"
 
-# The image is Ubuntu 24.04, and its apt sources ship PHP 8.3. Another version needs its own source.
+# The image is Ubuntu 24.04, and its apt sources ship PHP 8.3 and MySQL 8.0. Another version comes
+# from its vendor's apt source, which costs about a minute more in the setup script.
 PHP_VERSION="8.3"
+MYSQL_VERSION="8.0"
 # Composer stops without imagick in most Witify projects.
 PHP_EXTENSIONS="fpm cli mysql redis gd imagick intl bcmath zip soap mbstring xml curl sqlite3 opcache gmp"
-SYSTEM_PACKAGES="mysql-server-8.0 nginx ffmpeg imagemagick jq lsof"
+SYSTEM_PACKAGES="nginx ffmpeg imagemagick jq lsof"
 EXTRA_SYSTEM_PACKAGES=""
 
 # Skills that exist only as plugins on a developer machine: cloud sessions install no plugin.
