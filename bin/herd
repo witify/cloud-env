@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# The project rules and allow lists call `herd php` and `herd composer`. There is no Herd in
+# the cloud VM, so this shim keeps those commands valid and turns the site commands into no-ops.
+
+command="${1:-}"
+[ $# -gt 0 ] && shift
+
+case "$command" in
+    php)
+        exec php "$@"
+        ;;
+    composer)
+        exec composer "$@"
+        ;;
+    *)
+        echo "herd shim: '$command' does nothing in the cloud VM (the site is http://localhost)." >&2
+        exit 0
+        ;;
+esac

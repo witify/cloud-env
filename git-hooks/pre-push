@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Set for every repository in the VM through `git config --system core.hooksPath`. The command
+# guard reads text, so a push it cannot parse still ends here, where git gives the real refs.
+
+readonly NO_SHA="0000000000000000000000000000000000000000"
+
+refuse() {
+    echo "Refused in the cloud VM: $1" >&2
+    exit 1
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/dev | refs/heads/main | refs/heads/master | refs/heads/deploy | refs/heads/deploy-dev)
+            refuse "$remote_ref changes only through a merged pull request."
+            ;;
+    esac
+
+    [ "$local_sha" = "$NO_SHA" ] && refuse "deleting $remote_ref stays with a person."
+
+    base=""
+    for candidate in origin/dev origin/main origin/master; do
+        base="$(git merge-base "$local_sha" "$candidate" 2>/dev/null)" && break
+    done
+
+    if [ -n "$base" ] && [ -n "$(git diff --name-only "$base" "$local_sha" -- .github/workflows)" ]; then
+        refuse "this push changes .github/workflows, which run on a self-hosted machine. A person makes that change."
+    fi
+done
+
+exit 0

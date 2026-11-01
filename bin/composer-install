@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# `composer install` for the cloud VM.
+#
+# composer.lock points every package at api.github.com/repos/<owner>/<repo>/zipball/<ref>.
+#   - The setup script is not behind the session's GitHub proxy: codeload.github.com answers
+#     there and is fast, so a temporary copy of the lock uses those URLs (--setup).
+#   - A session gets 403 from api.github.com and codeload for any repository that is not
+#     attached to it, but git reads of public repositories work. So a session installs from
+#     source. A package with no source in the lock (phpstan/phpstan) goes through git first,
+#     then into the Composer cache under the key Composer looks for.
+
+set -uo pipefail
+
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib.sh"
+cd "$ROOT_DIR" || exit 1
+
+install_for_setup() {
+    local status
+
+    cp composer.lock "$STATE_DIR/composer.lock.original"
+    python3 -I - <<'PYTHON'
+import json, re
+
+path = 'composer.lock'
+lock = json.load(open(path))
+pattern = re.compile(r'^https://api\.github\.com/repos/([^/]+)/([^/]+)/zipball/(.+)$')
+for package in lock['packages'] + lock['packages-dev']:
+    dist = package.get('dist') or {}
+    match = pattern.match(dist.get('url', ''))
+    if match:
+        dist['url'] = 'https://codeload.github.com/{}/{}/legacy.zip/{}'.format(*match.groups())
+json.dump(lock, open(path, 'w'), indent=4)
+PYTHON
+
+    composer install --prefer-dist --no-progress
+    status=$?
+
+    cp "$STATE_DIR/composer.lock.original" composer.lock
+
+    return "$status"
+}
+
+seed_cache_with_dist_only_packages() {
+    python3 -I - <<'PYTHON' | while read -r name reference url; do
+import json
+
+lock = json.load(open('composer.lock'))
+for package in lock['packages'] + lock['packages-dev']:
+    if not package.get('source') and package.get('dist'):
+        print(package['name'], package['dist']['reference'], package['dist']['url'])
+PYTHON
+        local installed_reference cache_directory work_directory key
+        installed_reference="$(jq -r --arg name "$name" '.packages[] | select(.name == $name) | .dist.reference' vendor/composer/installed.json 2>/dev/null)"
+        [ "$installed_reference" = "$reference" ] && continue
+
+        cache_directory="$(composer config --global cache-files-dir)/$name"
+        work_directory="$(mktemp -d)"
+        key="$(printf '%s' "$url" | sha1sum | cut -d' ' -f1)"
+
+        git -C "$work_directory" init -q
+        git -C "$work_directory" remote add origin "https://github.com/$name.git"
+        git -C "$work_directory" fetch -q --depth 1 origin "$reference"
+        mkdir -p "$cache_directory"
+        git -C "$work_directory" archive --format=zip --prefix="$(basename "$name")/" -o "$cache_directory/$key.zip" FETCH_HEAD
+        rm -rf "$work_directory"
+    done
+}
+
+install_for_session() {
+    seed_cache_with_dist_only_packages
+    composer install --prefer-source --no-progress
+}
+
+case "${1:-}" in
+    --setup)
+        install_for_setup || install_for_session
+        ;;
+    *)
+        install_for_session
+        ;;
+esac

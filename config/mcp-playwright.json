@@ -1,0 +1,17 @@
+{
+  "type": "stdio",
+  "command": "/opt/node22/bin/playwright-mcp",
+  "args": [
+    "--headless",
+    "--browser",
+    "chromium",
+    "--executable-path",
+    "/opt/pw-browsers/chromium",
+    "--no-sandbox",
+    "--caps=devtools",
+    "--viewport-size",
+    "1440x900",
+    "--output-dir",
+    "/tmp/playwright-mcp"
+  ]
+}

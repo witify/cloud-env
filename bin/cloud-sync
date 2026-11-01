@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Brings the running stack in line with the checked-out code. Run after any git checkout,
+# pull or rebase. Does only what changed, so it costs about a second when nothing did.
+
+set -uo pipefail
+
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib.sh"
+cd "$ROOT_DIR" || exit 1
+
+failed=0
+
+composer_print="$(fingerprint composer.lock composer.json)"
+if state_changed composer "$composer_print"; then
+    if "$CLOUD_DIR/bin/composer-install" >"$LOG_DIR/sync-composer.log" 2>&1; then
+        remember_state composer "$composer_print"
+        echo "composer: installed"
+    else
+        echo "composer: FAILED, see $LOG_DIR/sync-composer.log"
+        failed=1
+    fi
+fi
+
+npm_print="$(fingerprint package-lock.json)"
+if state_changed npm "$npm_print"; then
+    if npm ci --no-audit --no-fund >"$LOG_DIR/sync-npm.log" 2>&1; then
+        remember_state npm "$npm_print"
+        echo "npm: installed"
+    else
+        echo "npm: FAILED, see $LOG_DIR/sync-npm.log"
+        failed=1
+    fi
+fi
+
+migrations_print="$(migrations_fingerprint)"
+if state_changed migrations "$migrations_print"; then
+    if php artisan migrate --force --no-interaction >"$LOG_DIR/sync-migrate.log" 2>&1 \
+        && DB_DATABASE="$TEST_DATABASE" APP_ENV=testing php artisan migrate --force --no-interaction >>"$LOG_DIR/sync-migrate.log" 2>&1; then
+        remember_state migrations "$migrations_print"
+        echo "migrations: applied to $APP_DATABASE and $TEST_DATABASE"
+    else
+        echo "migrations: FAILED, see $LOG_DIR/sync-migrate.log"
+        failed=1
+    fi
+fi
+
+frontend_print="$(frontend_fingerprint)"
+if state_changed frontend "$frontend_print" || [ ! -f public/build/manifest.json ]; then
+    rm -f public/hot
+    if npm run build -- --minify false >"$LOG_DIR/sync-build.log" 2>&1; then
+        remember_state frontend "$frontend_print"
+        echo "assets: rebuilt"
+    else
+        echo "assets: FAILED, see $LOG_DIR/sync-build.log"
+        failed=1
+    fi
+fi
+
+# Long-lived workers keep the old code in memory.
+if [ "${1:-}" != "--no-restart" ]; then
+    restart_workers
+fi
+
+exit "$failed"
