@@ -87,6 +87,7 @@ The set is every subtask of the current group, in blocking order. A parent with 
 | `gh api graphql` for threads | `mcp__github__pull_request_read` to read threads, `gh api repos/<owner>/<repo>/pulls/<n>/comments/<id>/replies` to reply, `mcp__github__resolve_review_thread` to resolve. |
 | The desktop app's Auto-fix, `ccd_pr` | Not here. Run the wave loop yourself. |
 | Ask when uncertain | Decide, and write it under "Choix à valider". |
+| Reply to a finding and resolve its thread | When you reject a finding, also add it with your reason under "Choix à valider" in the report and in the pull request body. A resolved thread is collapsed, and a person must be able to see the decision. |
 | Wait 15 minutes for Codex | Push first and read the reactions once: Codex can already have answered. Otherwise `send_later` in 15 minutes and end the turn. The VM can be reclaimed while it is idle, so nothing important stays unpushed. A 👍 from Codex sends no event: read the reactions at that check. |
 
 The rules in `CLAUDE.md` apply as usual, with the differences in the session context.
