@@ -78,12 +78,31 @@ mysql_answers() {
     mysqladmin -uroot -h127.0.0.1 --connect-timeout=1 ping >/dev/null 2>&1
 }
 
+# MySQL's own package has a systemd unit and no init script, and the VM has no systemd.
+start_mysql_server() {
+    if [ -x /etc/init.d/mysql ]; then
+        service mysql start >/dev/null 2>&1
+        return
+    fi
+
+    mkdir -p /var/run/mysqld
+    chown mysql:mysql /var/run/mysqld
+    [ -d /var/lib/mysql/mysql ] || mysqld --initialize-insecure --user=mysql >>"$LOG_DIR/mysqld.log" 2>&1
+    setsid nohup mysqld --user=mysql >>"$LOG_DIR/mysqld.log" 2>&1 </dev/null &
+}
+
+# Over the socket, mysqladmin waits for the server to be gone. Over TCP it does not.
+stop_mysql_server() {
+    mysqladmin -uroot shutdown 2>/dev/null || service mysql stop >/dev/null 2>&1
+    return 0
+}
+
 start_mysql() {
     mysql_answers && return 0
 
     # A paused VM can leave a stale lock behind.
     rm -f /var/run/mysqld/mysqld.sock.lock
-    service mysql start >/dev/null 2>&1
+    start_mysql_server
 
     local attempt
     for attempt in $(seq 1 60); do

@@ -93,7 +93,8 @@ configure_nginx() {
 
 configure_mysql() {
     cp "$CLOUD_DIR/config/mysql.cnf" /etc/mysql/mysql.conf.d/zz-cloud.cnf
-    service mysql restart || { rm -f /etc/mysql/mysql.conf.d/zz-cloud.cnf; service mysql start; } || return 1
+    stop_mysql_server
+    start_mysql || { rm -f /etc/mysql/mysql.conf.d/zz-cloud.cnf; start_mysql; } || return 1
 
     # The site and the tests connect as root with no password over TCP.
     mysql -uroot <<SQL
@@ -259,8 +260,7 @@ remember_fingerprints() {
 
 # Stops cleanly so the snapshot holds a consistent data directory.
 stop_services() {
-    # Over the socket, mysqladmin waits for the server to be gone. Over TCP it does not.
-    mysqladmin -uroot shutdown 2>/dev/null || service mysql stop
+    stop_mysql_server
     service redis-server stop
     pkill -x nginx 2>/dev/null
     pkill -x "php-fpm$PHP_VERSION" 2>/dev/null
