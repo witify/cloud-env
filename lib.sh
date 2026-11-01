@@ -88,7 +88,8 @@ start_mysql_server() {
     mkdir -p /var/run/mysqld
     chown mysql:mysql /var/run/mysqld
     [ -d /var/lib/mysql/mysql ] || mysqld --initialize-insecure --user=mysql >>"$LOG_DIR/mysqld.log" 2>&1
-    setsid nohup mysqld --user=mysql >>"$LOG_DIR/mysqld.log" 2>&1 </dev/null &
+    # In a subshell, or the `wait` of setup.sh waits for the server forever.
+    (setsid nohup mysqld --user=mysql >>"$LOG_DIR/mysqld.log" 2>&1 </dev/null &)
 }
 
 # Over the socket, mysqladmin waits for the server to be gone. Over TCP it does not.
