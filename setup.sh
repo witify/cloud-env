@@ -16,7 +16,7 @@ date -u +%FT%TZ >"$STATE_DIR/setup-started-at"
 IMAGE_PHP_VERSION="8.3"
 IMAGE_MYSQL_VERSION="8.0"
 ONDREJ_PHP_KEY_URL="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xB8DC7E53946656EFBCE4C1DD71DAEAAB4AD4CAB6"
-MYSQL_KEY_URL="https://repo.mysql.com/RPM-GPG-KEY-mysql-2023"
+MYSQL_KEY_URL="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBCA43417C3B485DD128EC6D4B7B3B788A8D3785C"
 
 php_packages() {
     local extension
