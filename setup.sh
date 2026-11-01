@@ -211,8 +211,26 @@ PYTHON
 write_env_file() {
     {
         project_env
+        [ "$USES_REVERB" = "true" ] && sed -e "s#__APP_DATABASE__#$APP_DATABASE#" "$CLOUD_DIR/env.reverb"
         sed -e "s#__SITE_URL__#$SITE_URL#" -e "s#__APP_DATABASE__#$APP_DATABASE#" "$CLOUD_DIR/env.defaults"
     } | awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { if (seen[$1]++) next } { print }' >"$ROOT_DIR/.env"
+}
+
+# Installed packages and databases follow these values, so a later checkout must not change them.
+detect_project() {
+    python3 -I "$CLOUD_DIR/detect.py" "$ROOT_DIR" >"$DETECTED_FILE"
+}
+
+# The first user is the one the install command creates. An agent gets a login only when the
+# password was proven against this user's hash.
+detect_login() {
+    local email hash password
+
+    IFS=$'\t' read -r email hash < <(mysql -uroot -N -B "$APP_DATABASE" -e "SELECT email, password FROM users ORDER BY id LIMIT 1" 2>/dev/null)
+    [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$ ]] || return 0
+
+    password="$(php "$CLOUD_DIR/find-seeded-password.php" "$hash")" || return 0
+    printf "SITE_LOGIN_EMAIL='%s'\nSITE_LOGIN_PASSWORD='%s'\n" "$email" "$password" >>"$DETECTED_FILE"
 }
 
 install_php_dependencies() {
@@ -230,6 +248,7 @@ prepare_application() {
     php artisan key:generate --force --no-interaction
 
     install_application || return 1
+    detect_login
     DB_DATABASE="$TEST_DATABASE" APP_ENV=testing php artisan migrate:fresh --force --no-interaction
 }
 
@@ -267,14 +286,19 @@ stop_services() {
     return 0
 }
 
-# The guard comes first: a VM with no project file must still have it.
+if [ -n "$ROOT_DIR" ]; then
+    step detect-project detect_project
+    load_project_values
+fi
+
+# The guard comes first: a VM with no project must still have it.
 step link-commands link_commands
 step configure-claude configure_claude
 
 if [ -z "$ROOT_DIR" ]; then
-    # Happens on a branch that does not have the file yet. The snapshot stays bare until the
-    # environment's setup script changes, and session-start.sh tells the agent.
-    echo "cloud-env: no repository under /home/user has $PROJECT_FILE, so the project was not installed." | tee "$LOG_DIR/no-project-file.log"
+    # The snapshot stays bare until the environment's setup script changes, and session-start.sh
+    # tells the agent.
+    echo "cloud-env: no Laravel project under /home/user, so no project was installed." | tee "$LOG_DIR/no-project.log"
     exit 0
 fi
 

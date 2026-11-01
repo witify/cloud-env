@@ -7,7 +7,7 @@
 
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
 if [ -z "$ROOT_DIR" ]; then
-    echo "WARNING: this branch has no $PROJECT_FILE, so the project was not installed in this VM: no database, no site, no workers. The guard is on. Report this before you rely on the stack."
+    echo "WARNING: no Laravel project was found under /home/user, so nothing was installed in this VM: no database, no site, no workers. The guard is on. Report this before you rely on the stack."
     exit 0
 fi
 
@@ -49,7 +49,11 @@ echo
 echo "## This project"
 if [ -n "$SITE_LOGIN_EMAIL" ]; then
     echo "- Sign in as \`$SITE_LOGIN_EMAIL\` / \`$SITE_LOGIN_PASSWORD\`. The landing path is \`$SITE_LANDING_PATH\`."
+else
+    echo "- No seeded login was found. Read the install command and the seeders to find one. The landing path is \`$SITE_LANDING_PATH\`."
 fi
+worker_names="$(background_workers | cut -d'|' -f1 | paste -sd, - | sed 's/,/, /g')"
+[ -n "$worker_names" ] && echo "- Workers: $worker_names."
 project_context
 
 echo

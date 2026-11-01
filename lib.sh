@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Shared by setup.sh, session-start.sh and the commands in bin/. All of them run from /opt/cloud-env.
 #
-# The project's values come from .claude/cloud.sh in its repository. A copy stays in the state
-# folder: a session can check out a branch that does not have the file yet, and the services must
+# The project's values come, in this order, from defaults.sh, from what setup.sh detected once for
+# this snapshot, and from the optional .claude/cloud.sh in its repository. A copy of that file stays
+# in the state folder: a session can check out a branch that does not have it, and the services must
 # still start. Each script refreshes the copy from the checkout when the checkout has the file.
 
 CLOUD_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
@@ -10,6 +11,7 @@ STATE_DIR="/var/lib/cloud-env"
 LOG_DIR="/var/log/cloud-env"
 PROJECT_FILE=".claude/cloud.sh"
 INSTALLED_PROJECT_FILE="$STATE_DIR/project.sh"
+DETECTED_FILE="$STATE_DIR/detected.sh"
 ROOT_DIR_FILE="$STATE_DIR/root-dir"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
@@ -27,9 +29,9 @@ find_root_dir() {
         return 0
     fi
 
-    for candidate in /home/user/*/"$PROJECT_FILE"; do
+    for candidate in /home/user/*/artisan; do
         if [ -f "$candidate" ]; then
-            dirname "$(dirname "$candidate")"
+            dirname "$candidate"
             return 0
         fi
     done
@@ -39,17 +41,26 @@ find_root_dir() {
 
 ROOT_DIR="$(find_root_dir)"
 
-# shellcheck source=defaults.sh
-source "$CLOUD_DIR/defaults.sh"
+load_project_values() {
+    # shellcheck source=defaults.sh
+    source "$CLOUD_DIR/defaults.sh"
 
-if [ -n "$ROOT_DIR" ] && [ -f "$ROOT_DIR/$PROJECT_FILE" ]; then
-    cp "$ROOT_DIR/$PROJECT_FILE" "$INSTALLED_PROJECT_FILE"
-fi
+    if [ -f "$DETECTED_FILE" ]; then
+        # shellcheck disable=SC1090
+        source "$DETECTED_FILE"
+    fi
 
-if [ -f "$INSTALLED_PROJECT_FILE" ]; then
-    # shellcheck disable=SC1090
-    source "$INSTALLED_PROJECT_FILE"
-fi
+    if [ -n "$ROOT_DIR" ] && [ -f "$ROOT_DIR/$PROJECT_FILE" ]; then
+        cp "$ROOT_DIR/$PROJECT_FILE" "$INSTALLED_PROJECT_FILE"
+    fi
+
+    if [ -f "$INSTALLED_PROJECT_FILE" ]; then
+        # shellcheck disable=SC1090
+        source "$INSTALLED_PROJECT_FILE"
+    fi
+}
+
+load_project_values
 
 log() {
     printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"
