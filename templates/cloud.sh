@@ -4,8 +4,10 @@
 # It runs as root at every session start: review a change here like a CI change.
 # Never put a secret here. The file is read by a VM where an agent reads untrusted text.
 # Use plain assignments, not `declare`: this file is sourced inside a function.
-# A version, a database name, packages, `project_env` and `install_*` take effect only in a new
-# snapshot: change the number in the environment's setup script.
+# PHP_VERSION: session start uses a new value at once, and the site answers 502 until a new snapshot
+# exists. So change the number in the environment's setup script in the same step.
+# The MySQL version, a database name, packages, `project_env` and `install_*` take effect only in a
+# new snapshot.
 
 # A value that detection gets wrong. Any value or function in defaults.sh can go here.
 # MYSQL_VERSION="8.4"

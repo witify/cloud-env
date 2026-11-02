@@ -54,7 +54,7 @@ else
 fi
 worker_names="$(background_workers | cut -d'|' -f1 | paste -sd, - | sed 's/,/, /g')"
 [ -n "$worker_names" ] && echo "- Workers: $worker_names."
-[ "$USES_REVERB" = "true" ] || echo "- No WebSocket server runs here, so a failed WebSocket in the browser console is expected. It is not a finding."
+has_worker 'reverb|websockets' || echo "- No WebSocket server runs here, so a failed WebSocket in the browser console is expected. It is not a finding."
 project_context
 
 echo

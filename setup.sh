@@ -209,12 +209,16 @@ PYTHON
 
 # Project lines come first, and only the first line of a key stays.
 write_env_file() {
+    local title
+
+    title="$(printf '%s' "$APP_TITLE" | sed 's/[&#\\]/\\&/g')"
+
     {
         project_env
         [ "$USES_REVERB" = "true" ] && sed -e "s#__APP_DATABASE__#$APP_DATABASE#" "$CLOUD_DIR/env.reverb"
-        # With no Horizon, nothing reads a Redis queue.
-        [ "$USES_HORIZON" = "true" ] || echo "QUEUE_CONNECTION=sync"
-        sed -e "s#__SITE_URL__#$SITE_URL#" -e "s#__APP_DATABASE__#$APP_DATABASE#" -e "s#__APP_TITLE__#$APP_TITLE#" "$CLOUD_DIR/env.defaults"
+        # With no worker on the queue, nothing reads a Redis queue.
+        has_worker 'horizon|queue:' || echo "QUEUE_CONNECTION=sync"
+        sed -e "s#__SITE_URL__#$SITE_URL#" -e "s#__APP_DATABASE__#$APP_DATABASE#" -e "s#__APP_TITLE__#$title#" "$CLOUD_DIR/env.defaults"
     } | awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { if (seen[$1]++) next } { print }' >"$ROOT_DIR/.env"
 }
 

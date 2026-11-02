@@ -45,7 +45,7 @@ A ticket with open product questions comes back to `todo` without its tag, with 
 | `install_application` | `artisan install --seed` when the install command has the signature `install {--seed}` | `artisan migrate --seed` |
 | `install_demo_data` | `db:seed --class=DemoSeeder` when `database/seeders/DemoSeeder.php` exists | Nothing |
 | `background_workers` | Horizon and Reverb when `require` of `composer.json` has them | None |
-| `QUEUE_CONNECTION` | `redis` when `require` has `laravel/horizon` | `sync`: nothing would read a Redis queue |
+| `QUEUE_CONNECTION` | `redis` when a worker reads the queue | `sync`: nothing would read a Redis queue |
 | Broadcast `.env` lines | `env.reverb` when `require` has `laravel/reverb` | `BROADCAST_CONNECTION=log`, and placeholder Pusher values |
 | `SITE_LANDING_PATH` | `/admin` when `routes/admin.php` exists, or for a Filament panel | `/` |
 | `SITE_CHECK_PATH`, `SITE_LOGIN_PATH` | `/admin/login` when `require` has `filament/filament` and `routes/admin.php` does not exist | `/login` |
@@ -56,7 +56,7 @@ The values are kept in `/var/lib/cloud-env/detected.sh`, so a later checkout doe
 
 An optional `.claude/cloud.sh` in the project replaces any value or function of `defaults.sh`, and adds notes for the agent: see `templates/cloud.sh`. It is not needed on every branch, because a copy stays in the VM.
 
-A multi-tenant project needs this file. `tsa` is the known case: its seeder cannot run outside a tenant, its central routes need `CENTRAL_DOMAIN=localhost` and `CENTRAL_DOMAINS=localhost,127.0.0.1`, and its install command takes a name, an email and a password. So its file sets `project_env`, `install_application` and the login.
+A multi-tenant project needs this file. `tsa` is the known case: its seeder cannot run outside a tenant, its central routes need `CENTRAL_DOMAIN=localhost` and `CENTRAL_DOMAINS=localhost,127.0.0.1`, and its install command takes a name, an email and a password. So it needs a file that sets `project_env`, `install_application`, the login and its landing path. That file does not exist yet.
 
 The snapshot lasts about 7 days and is per branch. It follows new commits on that branch: the agent gets the new code, and `cloud-sync` catches up. So start sessions from `dev` and let the agent switch branch.
 

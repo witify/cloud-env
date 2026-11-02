@@ -6,7 +6,7 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 - Repository: `__ROOT_DIR__`. Plain `php`, `composer` and `npm` work; `herd php` and `herd composer` also work through a shim.
 - Site: `__SITE_URL__` (nginx, php-fpm, PHP __PHP_VERSION__).
 - Also running: MySQL __MYSQL_VERSION__ (`root`, no password, databases `__APP_DATABASE__` and `__TEST_DATABASE__`), Redis, Mailpit (`http://localhost:8025`) and the workers of this project.
-- After any `git checkout`, `pull` or `rebase`: run `cloud-sync`. It installs dependencies, migrates both databases and rebuilds assets, only for what changed, and restarts the workers.
+- After any `git checkout`, `pull` or `rebase`: run `cloud-sync`. It installs dependencies, migrates both databases and rebuilds assets, only for what changed, and restarts the workers. A page left open during that restart logs a refused WebSocket: reload it. That does not mean a worker is down, and `cloud-sync` says `FAILED` when one is.
 - Assets are built, no Vite server runs. After a Vue change, run `cloud-sync`.
 - Does not work here: an integration with no key in `.env`, a host outside the allowlist, real client data. A failure caused by a missing key is not a finding: name it as a check for a Mac. `This project` below can add to this list.
 - To let a person try a branch on a Mac, unless `This project` below gives another command: `git fetch origin && git switch <branch> && herd composer install && npm ci && php artisan migrate && npm run build`.

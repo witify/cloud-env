@@ -161,6 +161,11 @@ start_mailpit() {
     setsid nohup mailpit --smtp 127.0.0.1:1025 --listen 127.0.0.1:8025 >"$LOG_DIR/mailpit.log" 2>&1 </dev/null &
 }
 
+# The test goes through a variable: `grep -q` stops reading first, and pipefail then sees a failure.
+has_worker() {
+    grep -Eq "$1" <<<"$(background_workers)"
+}
+
 start_workers() {
     local name command
 

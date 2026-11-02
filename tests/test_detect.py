@@ -62,12 +62,21 @@ class DetectTest(ProjectTestCase):
             (lock('>=8.4.1'), "'8.4'"),
             (lock('^8.1', '>=8.4'), "'8.4'"),
             (lock('8.4.*'), "'8.4'"),
-            (lock('^7.2|^8.0', '>=7.4'), "'8.3'"),
+            (lock('^7.4|^8.4'), "'8.3'"),
+            (lock('^8.4'), "'8.4'"),
+            (lock('~8.4.0'), "'8.4'"),
+            (lock('^8.5 || ^8.3'), "'8.3'"),
+            (lock('^8.0 || ^7.4'), "'8.3'"),
             (lock('^8.1'), "'8.3'"),
         ]
         for content, expected in cases:
             root = self.project(**{'composer.json': self.composer(php='^8.3'), 'composer.lock': content})
             self.assertEqual(self.detect(root)['PHP_VERSION'], expected, content)
+
+    def test_a_lock_with_null_dev_packages_is_read(self):
+        lock = json.dumps({'packages': [{'name': 'a/one', 'require': {'php': '>=8.4'}}], 'packages-dev': None})
+        root = self.project(**{'composer.json': self.composer(php='^8.3'), 'composer.lock': lock})
+        self.assertEqual(self.detect(root)['PHP_VERSION'], "'8.4'")
 
     def test_a_constraint_cannot_inject_shell(self):
         root = self.project(**{'composer.json': self.composer(php="8.3'; reboot; '")})
@@ -91,6 +100,9 @@ class DetectTest(ProjectTestCase):
     def test_the_first_workflow_with_a_mysql_image_decides(self):
         root = self.project(**{'.github__workflows__a.yaml': 'image: mysql:8.4', '.github__workflows__b.yml': 'image: mysql:8.0'})
         self.assertEqual(self.detect(root)['MYSQL_VERSION'], "'8.4'")
+
+        root = self.project(**{'.github__workflows__a.yml': 'image: mysql:5.7', '.github__workflows__b.yml': 'image: mysql:8.4'})
+        self.assertNotIn('MYSQL_VERSION', self.detect(root))
 
     def test_no_workflow_stays_on_the_default(self):
         self.assertNotIn('MYSQL_VERSION', self.detect(self.project()))

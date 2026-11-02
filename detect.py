@@ -37,13 +37,20 @@ def php_minors_in_constraint(composer):
     return re.findall(r'(?<![\d.])8\.(\d{1,2})(?!\d)', constraint)
 
 
+# A package can list "^8.4 || ^8.3" with the newest first, and it accepts the lowest of them.
+def lowest_php_version(constraint):
+    versions = [re.match(r'[>=^~\s]*(\d+)\.(\d+)', alternative) for alternative in constraint.split('|')]
+
+    return min(((int(version.group(1)), int(version.group(2))) for version in versions if version), default=None)
+
+
 # "^8.3" in composer.json can hide a lock file that needs 8.4, and Composer then installs nothing.
 def php_floors_in_lock(lock):
     floors = []
-    for package in lock.get('packages', []) + lock.get('packages-dev', []):
-        floor = re.match(r'[>=^~\s]*8\.(\d{1,2})', str(required_packages(package).get('php', '')))
-        if floor:
-            floors.append(floor.group(1))
+    for package in (lock.get('packages') or []) + (lock.get('packages-dev') or []):
+        lowest = lowest_php_version(str(required_packages(package).get('php', '')))
+        if lowest and lowest[0] == 8:
+            floors.append(lowest[1])
 
     return floors
 

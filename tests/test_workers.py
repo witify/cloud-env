@@ -69,5 +69,33 @@ class WorkersNotUpTest(unittest.TestCase):
         self.assertEqual(not_up(workers), ['dead', 'never-listening', 'dead-with-port'])
 
 
+class HasWorkerTest(unittest.TestCase):
+    def has_worker(self, pattern, horizon='false', reverb='false', workers=None):
+        replacement = f'''background_workers() {{ cat <<'EOF'
+{workers}
+EOF
+}}''' if workers else ''
+        script = f'''
+set -uo pipefail
+source "{LIB}" 2>/dev/null
+USES_HORIZON={horizon}
+USES_REVERB={reverb}
+{replacement}
+has_worker '{pattern}' && echo yes || echo no
+'''
+        return subprocess.run(['bash', '-s'], input=script, capture_output=True, text=True, check=True).stdout.strip()
+
+    def test_it_reads_the_workers_that_detection_gives(self):
+        self.assertEqual(self.has_worker('horizon|queue:', horizon='true', reverb='true'), 'yes')
+        self.assertEqual(self.has_worker('reverb|websockets', horizon='true', reverb='true'), 'yes')
+        self.assertEqual(self.has_worker('reverb|websockets', horizon='true'), 'no')
+        self.assertEqual(self.has_worker('horizon|queue:'), 'no')
+
+    def test_it_reads_the_workers_of_a_project_file(self):
+        workers = 'queue|php artisan queue:work\nws|php artisan websockets:serve|6001'
+        self.assertEqual(self.has_worker('horizon|queue:', workers=workers), 'yes')
+        self.assertEqual(self.has_worker('reverb|websockets', workers=workers), 'yes')
+
+
 if __name__ == '__main__':
     unittest.main()

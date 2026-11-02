@@ -161,7 +161,7 @@ async function record(name, scenario, options = {}) {
             await page.locator('input:not([type=checkbox]):not([type=password])').first().fill(email);
             await page.locator('input[type=password]').first().fill(password);
             await demo.click('button[type=submit]');
-            await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH), { timeout: 30000 });
+            await page.waitForURL((url) => url.pathname !== LOGIN_PATH, { timeout: 30000 });
             await demo.goto(landingPath);
         },
 
