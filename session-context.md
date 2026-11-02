@@ -13,7 +13,7 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 
 ## Checks
 - Run the checks this project defines: the rules in `CLAUDE.md` when it exists, the scripts in `composer.json` and `package.json`, `php artisan test --compact --filter=...` and `vendor/bin/pint --dirty`. Report a script that does not exist as not run.
-- Run the relevant tests by default. Run the full suite only when a person or a skill you follow, such as `/ship`, asks for it, and in the background: `php artisan test --parallel --recreate-databases --compact`.
+- Run the relevant tests by default. Run the full suite only when a person or a skill you follow, such as `cloud-ticket`, asks for it, and in the background: `php artisan test --parallel --recreate-databases --compact`.
 
 ## Browser and video
 - Tools `mcp__playwright__*` drive a headless Chromium. Use them to explore and to check a screen.
@@ -26,4 +26,4 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 
 ## Tickets
 - A ClickUp ticket to do from A to Z: follow the `cloud-ticket` skill, in `/opt/cloud-env/skills/cloud-ticket/SKILL.md`.
-- Skills that are plugins on the Mac are linked in `~/.claude/skills` under their short name: `ship`, not `witify-skills:ship`. If a skill cannot be invoked because it has `disable-model-invocation`, read its `SKILL.md` and follow it.
+- Skills that are plugins on the Mac are linked in `~/.claude/skills` under their short name: `sprintify-ui`, not `witify-skills:sprintify-ui`. If a skill cannot be invoked because it has `disable-model-invocation`, read its `SKILL.md` and follow it.
