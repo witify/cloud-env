@@ -46,7 +46,7 @@ fi
 frontend_print="$(frontend_fingerprint)"
 if state_changed frontend "$frontend_print" || [ ! -f public/build/manifest.json ]; then
     rm -f public/hot
-    if npm run build -- --minify false >"$LOG_DIR/sync-build.log" 2>&1; then
+    if build_frontend >"$LOG_DIR/sync-build.log" 2>&1; then
         remember_state frontend "$frontend_print"
         echo "assets: rebuilt"
     else

@@ -15,16 +15,41 @@ SUPPORTED_MYSQL_VERSIONS = ('8.0', '8.4')
 INSTALL_COMMANDS = ('src/App/Console/Commands/Install.php', 'app/Console/Commands/Install.php')
 
 
-def read_composer(root):
+def read_json(file):
     try:
-        return json.loads((root / 'composer.json').read_text())
+        content = json.loads(file.read_text())
     except (OSError, ValueError):
         return {}
 
+    return content if isinstance(content, dict) else {}
 
-def php_version(composer):
-    constraint = str(composer.get('require', {}).get('php', ''))
-    minors = re.findall(r'(?<![\d.])8\.(\d{1,2})(?!\d)', constraint)
+
+def required_packages(package):
+    require = package.get('require')
+
+    return require if isinstance(require, dict) else {}
+
+
+def php_minors_in_constraint(composer):
+    # An upper bound names a version the project cannot use.
+    constraint = re.sub(r'<=?\s*[\d.*]+', '', str(required_packages(composer).get('php', '')))
+
+    return re.findall(r'(?<![\d.])8\.(\d{1,2})(?!\d)', constraint)
+
+
+# "^8.3" in composer.json can hide a lock file that needs 8.4, and Composer then installs nothing.
+def php_floors_in_lock(lock):
+    floors = []
+    for package in lock.get('packages', []) + lock.get('packages-dev', []):
+        floor = re.match(r'[>=^~\s]*8\.(\d{1,2})', str(required_packages(package).get('php', '')))
+        if floor:
+            floors.append(floor.group(1))
+
+    return floors
+
+
+def php_version(root, composer):
+    minors = php_minors_in_constraint(composer) + php_floors_in_lock(read_json(root / 'composer.lock'))
 
     # "8.3.* || 8.4.*" allows both: the newest is the closest to what the project moves toward.
     return f'8.{max(map(int, minors))}' if minors else None
@@ -48,15 +73,28 @@ def has_seed_install_command(root):
     return False
 
 
+def app_title(root):
+    words = re.findall(r'[a-z0-9]+', root.name.lower())
+
+    return ' '.join(word.capitalize() for word in words) + ' Cloud' if words else None
+
+
 def detect(root):
-    composer = read_composer(root)
-    packages = composer.get('require', {})
+    composer = read_json(root / 'composer.json')
+    packages = required_packages(composer)
+    has_admin_routes = (root / 'routes/admin.php').is_file()
+    # A Filament panel has its own login page, and the project may have no /login at all.
+    has_filament_login = 'filament/filament' in packages and not has_admin_routes
+    login_path = '/admin/login' if has_filament_login else None
 
     values = {
-        'PHP_VERSION': php_version(composer),
+        'PHP_VERSION': php_version(root, composer),
         'MYSQL_VERSION': mysql_version(root),
         'APP_DATABASE': re.sub(r'[^a-z0-9]+', '_', root.name.lower()).strip('_') or None,
-        'SITE_LANDING_PATH': '/admin' if (root / 'routes/admin.php').is_file() else None,
+        'APP_TITLE': app_title(root),
+        'SITE_CHECK_PATH': login_path,
+        'SITE_LOGIN_PATH': login_path,
+        'SITE_LANDING_PATH': '/admin' if has_admin_routes or has_filament_login else None,
         'HAS_INSTALL_COMMAND': str(has_seed_install_command(root)).lower(),
         'HAS_DEMO_SEEDER': str((root / 'database/seeders/DemoSeeder.php').is_file()).lower(),
         'USES_HORIZON': str('laravel/horizon' in packages).lower(),

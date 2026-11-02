@@ -55,9 +55,15 @@ load_project_values() {
     fi
 
     if [ -f "$INSTALLED_PROJECT_FILE" ]; then
+        # An unset variable in a project's file must not stop setup.sh before the guard is installed.
+        local shell_flags="$-"
+        set +u
         # shellcheck disable=SC1090
         source "$INSTALLED_PROJECT_FILE"
+        [[ "$shell_flags" == *u* ]] && set -u
     fi
+
+    return 0
 }
 
 load_project_values
@@ -234,6 +240,11 @@ migrations_fingerprint() {
             git ls-files --others --exclude-standard -- database/migrations 'modules/*/migrations/*' 'modules/*/Database/migrations/*'
         } 2>/dev/null | sha256sum | cut -d' ' -f1
     )
+}
+
+# A PWA plugin can refuse the larger files of an unminified build, and only stops the build at the end.
+build_frontend() {
+    npm run build -- --minify false || npm run build
 }
 
 state_changed() {

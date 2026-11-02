@@ -7,10 +7,12 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 - Site: `__SITE_URL__` (nginx, php-fpm, PHP __PHP_VERSION__).
 - Also running: MySQL __MYSQL_VERSION__ (`root`, no password, databases `__APP_DATABASE__` and `__TEST_DATABASE__`), Redis, Mailpit (`http://localhost:8025`) and the workers of this project.
 - After any `git checkout`, `pull` or `rebase`: run `cloud-sync`. It installs dependencies, migrates both databases and rebuilds assets, only for what changed, and restarts the workers.
-- Assets are built, no Vite server runs. After a Vue change, `cloud-sync` or `npm run build -- --minify false`.
+- Assets are built, no Vite server runs. After a Vue change, run `cloud-sync`.
+- Does not work here: an integration with no key in `.env`, a host outside the allowlist, real client data. A failure caused by a missing key is not a finding: name it as a check for a Mac. `This project` below can add to this list.
+- To let a person try a branch on a Mac, unless `This project` below gives another command: `git fetch origin && git switch <branch> && herd composer install && npm ci && php artisan migrate && npm run build`.
 
 ## Checks
-- The checks in `CLAUDE.md` apply: `php artisan test --compact --filter=...`, `herd composer larastan`, `vendor/bin/pint --dirty`, `npm run test`, `npm run lint`, `npm run build`.
+- Run the checks this project defines: the rules in `CLAUDE.md` when it exists, the scripts in `composer.json` and `package.json`, `php artisan test --compact --filter=...` and `vendor/bin/pint --dirty`. Report a script that does not exist as not run.
 - Run the relevant tests by default. Run the full suite only when a person or a skill you follow, such as `/ship`, asks for it, and in the background: `php artisan test --parallel --recreate-databases --compact`.
 
 ## Browser and video

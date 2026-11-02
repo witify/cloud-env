@@ -4,10 +4,12 @@
 
 APP_DATABASE="app"
 TEST_DATABASE="test"
+APP_TITLE="Cloud VM"
 
 SITE_URL="http://localhost"
 # curl checks this page at every session start. It must answer 200 with no session.
 SITE_CHECK_PATH="/login"
+SITE_LOGIN_PATH="/login"
 # Found in the database after the install: see detect_login in setup.sh.
 SITE_LOGIN_EMAIL=""
 SITE_LOGIN_PASSWORD=""
@@ -66,7 +68,7 @@ background_workers() {
     return 0
 }
 
-# .env lines that replace the ones in env.reverb and env.defaults.
+# .env lines that replace the ones setup.sh writes.
 project_env() {
     return 0
 }

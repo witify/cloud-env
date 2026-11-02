@@ -2,7 +2,7 @@
 
 A Claude Code cloud session on this environment has what a MacBook has: MySQL, PHP, Redis, Mailpit, nginx, built assets, the project's workers, Laravel Boost, headless Chromium with video. A ClickUp ticket can go from A to Z there with no person watching.
 
-A Witify Laravel project needs no file: the VM reads what it needs from the project's own files, and everything else is here. Claude Code has no built-in way to share this: [cloud sessions do not install plugins, the base image cannot be replaced, and the environment's variables do not exist yet when the setup script runs](https://code.claude.com/docs/en/cloud-environments). So the setup script clones this public repository at a fixed version.
+A standard Witify Laravel project needs no file: the VM reads what it needs from the project's own files, and everything else is here. A multi-tenant project needs a file: see below. Claude Code has no built-in way to share this: [cloud sessions do not install plugins, the base image cannot be replaced, and the environment's variables do not exist yet when the setup script runs](https://code.claude.com/docs/en/cloud-environments). So the setup script clones this public repository at a fixed version.
 
 This repository is public so the setup script can reach it. Keep it free of secrets and of client data.
 
@@ -38,20 +38,25 @@ A ticket with open product questions comes back to `todo` without its tag, with 
 
 | Value | Rule | Otherwise |
 |---|---|---|
-| `PHP_VERSION` | The newest `8.x` in `require.php` of `composer.json` | 8.3 |
-| `MYSQL_VERSION` | `mysql:8.0` or `mysql:8.4` in `.github/workflows` | 8.0 |
+| `PHP_VERSION` | The newest `8.x` in `require.php` of `composer.json`, or a higher floor that a package in `composer.lock` needs | 8.3 |
+| `MYSQL_VERSION` | The first `mysql:x.y` in `.github/workflows`, files in name order, when it is 8.0 or 8.4 | 8.0 |
 | `APP_DATABASE` | The repository's name, with `_` for what is not a letter or a digit | `app` |
+| `APP_TITLE`, for `APP_NAME` | The repository's name, in words, then `Cloud` | `Cloud VM` |
 | `install_application` | `artisan install --seed` when the install command has the signature `install {--seed}` | `artisan migrate --seed` |
 | `install_demo_data` | `db:seed --class=DemoSeeder` when `database/seeders/DemoSeeder.php` exists | Nothing |
 | `background_workers` | Horizon and Reverb when `require` of `composer.json` has them | None |
-| Broadcast `.env` lines | `env.reverb` when `require` has `laravel/reverb` | `BROADCAST_CONNECTION=log` |
-| `SITE_LANDING_PATH` | `/admin` when `routes/admin.php` exists | `/` |
+| `QUEUE_CONNECTION` | `redis` when `require` has `laravel/horizon` | `sync`: nothing would read a Redis queue |
+| Broadcast `.env` lines | `env.reverb` when `require` has `laravel/reverb` | `BROADCAST_CONNECTION=log`, and placeholder Pusher values |
+| `SITE_LANDING_PATH` | `/admin` when `routes/admin.php` exists, or for a Filament panel | `/` |
+| `SITE_CHECK_PATH`, `SITE_LOGIN_PATH` | `/admin/login` when `require` has `filament/filament` and `routes/admin.php` does not exist | `/login` |
 | `SITE_LOGIN_EMAIL` | The first user, after the install | No login |
 | `SITE_LOGIN_PASSWORD` | The string in the install command, the seeders or `UserFactory` that matches this user's hash. It stays in the project, not in this public repository | No login, and the agent is told so |
 
-The values are kept in `/var/lib/cloud-env/detected.sh`, so a later checkout does not change them. The session context says what the VM found. A wrong guess shows there, or as `PROBLEM` when a step or a service fails.
+The values are kept in `/var/lib/cloud-env/detected.sh`, so a later checkout does not change them. The session context shows the login, the landing path and the workers. `PROBLEM` there names a step or a service that failed.
 
 An optional `.claude/cloud.sh` in the project replaces any value or function of `defaults.sh`, and adds notes for the agent: see `templates/cloud.sh`. It is not needed on every branch, because a copy stays in the VM.
+
+A multi-tenant project needs this file. `tsa` is the known case: its seeder cannot run outside a tenant, its central routes need `CENTRAL_DOMAIN=localhost` and `CENTRAL_DOMAINS=localhost,127.0.0.1`, and its install command takes a name, an email and a password. So its file sets `project_env`, `install_application` and the login.
 
 The snapshot lasts about 7 days and is per branch. It follows new commits on that branch: the agent gets the new code, and `cloud-sync` catches up. So start sessions from `dev` and let the agent switch branch.
 
@@ -114,7 +119,7 @@ Five limits decide this shape, all seen in live tests:
 - `subscribe_pr_activity` through the `Claude_Code_Remote` connector stops for an approval. The worker does not need it: a pull request opened in a scheduled run subscribes the session by itself.
 - The check matches `cloud-agent`, not `ready-for-agent`, for stuck runs: older tickets can hold `ready-for-agent` with no run behind them.
 
-For an instant start, add an API trigger to the worker on the web, and call its Fire URL from a ClickUp automation "Call webhook" on "Tag added", with the headers `Authorization: Bearer <token>` and `anthropic-version`. A person pastes the token: an agent does not handle it. This path is not tested yet.
+For an instant start, add an API trigger to the worker on the web, and call its Fire URL from a ClickUp automation "Call webhook" on "Tag added", with the headers `Authorization: Bearer <token>` and `anthropic-version`. The call must send a body such as `{"text":"ClickUp task <task id>"}`, because a worker with no id stops. A person pastes the token: an agent does not handle it. This path is not tested yet.
 
 ## Change it
 
@@ -135,4 +140,5 @@ The agent reads untrusted text (tickets, PDFs, web pages) with a person's GitHub
 
 - **Self-hosted CI.** A workflow on a self-hosted runner runs code pushed from the cloud with no review, outside the network allowlist. Prefer `ubuntu-latest`.
 - **Branch protection.** Only GitHub can really refuse a push to `dev` or `main`. Require a pull request there, with no bypass for admins.
-- **Keys in tracked files.** Every tracked file is in the VM, and the agent can read it. `.env` comes from `env.defaults` and `project_env`, and `.env.example` is not copied to it, but it is in the checkout: keep it free of real keys.
+- **The seeded password.** The session context holds the first user's password, read from the project. An install command must use a random password outside `local`.
+- **Keys in tracked files.** Every tracked file is in the VM, and the agent can read it. `.env` comes from `env.defaults`, `env.reverb` and `project_env`, and `.env.example` is not copied to it, but it is in the checkout: keep it free of real keys.

@@ -212,7 +212,9 @@ write_env_file() {
     {
         project_env
         [ "$USES_REVERB" = "true" ] && sed -e "s#__APP_DATABASE__#$APP_DATABASE#" "$CLOUD_DIR/env.reverb"
-        sed -e "s#__SITE_URL__#$SITE_URL#" -e "s#__APP_DATABASE__#$APP_DATABASE#" "$CLOUD_DIR/env.defaults"
+        # With no Horizon, nothing reads a Redis queue.
+        [ "$USES_HORIZON" = "true" ] || echo "QUEUE_CONNECTION=sync"
+        sed -e "s#__SITE_URL__#$SITE_URL#" -e "s#__APP_DATABASE__#$APP_DATABASE#" -e "s#__APP_TITLE__#$APP_TITLE#" "$CLOUD_DIR/env.defaults"
     } | awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { if (seen[$1]++) next } { print }' >"$ROOT_DIR/.env"
 }
 
@@ -260,7 +262,7 @@ seed_demo_data() {
 build_assets() {
     cd "$ROOT_DIR" || return 1
     rm -f public/hot
-    npm run build -- --minify false
+    build_frontend
 }
 
 step_succeeded() {

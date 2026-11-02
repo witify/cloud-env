@@ -6,6 +6,7 @@ const path = require('path');
 const { chromium } = require('playwright');
 
 const OUTPUT_DIRECTORY = process.env.DEMO_OUTPUT_DIR || path.resolve('.scratch/demo');
+const LOGIN_PATH = process.env.DEMO_LOGIN_PATH || '/login';
 const VIEWPORT = { width: 1440, height: 900 };
 const CURSOR_TRAVEL_MS = 450;
 const AFTER_ACTION_PAUSE_MS = 900;
@@ -46,7 +47,7 @@ async function warmUp(browser, siteUrl) {
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.goto(`${siteUrl}/login`, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
+    await page.goto(`${siteUrl}${LOGIN_PATH}`, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
     await context.close();
 }
 
@@ -156,11 +157,11 @@ async function record(name, scenario, options = {}) {
 
         async signIn(email = process.env.DEMO_LOGIN_EMAIL, password = process.env.DEMO_LOGIN_PASSWORD, landingPath = process.env.DEMO_LANDING_PATH || '/') {
             await page.context().clearCookies();
-            await demo.goto('/login');
+            await demo.goto(LOGIN_PATH);
             await page.locator('input:not([type=checkbox]):not([type=password])').first().fill(email);
             await page.locator('input[type=password]').first().fill(password);
             await demo.click('button[type=submit]');
-            await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30000 });
+            await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH), { timeout: 30000 });
             await demo.goto(landingPath);
         },
 
@@ -178,7 +179,7 @@ async function record(name, scenario, options = {}) {
     let scenarioError = null;
 
     try {
-        await page.goto(`${siteUrl}/login`, { waitUntil: 'networkidle', timeout: 60000 });
+        await page.goto(`${siteUrl}${LOGIN_PATH}`, { waitUntil: 'networkidle', timeout: 60000 });
         await scenario(demo);
         await demo.pause(1500);
     } catch (error) {

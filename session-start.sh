@@ -31,7 +31,7 @@ for worker in $(workers_not_up); do
     problems="$problems $worker"
 done
 
-site_status="$(curl -s -o /dev/null -m 20 -w '%{http_code}' "$SITE_URL$SITE_CHECK_PATH")"
+site_status="$(curl -s -L -o /dev/null -m 20 -w '%{http_code}' "$SITE_URL$SITE_CHECK_PATH")"
 [ "$site_status" = "200" ] || problems="$problems site(http-$site_status)"
 
 failed_steps="$(awk '$2 != 0 {print $1}' "$STATE_DIR/steps" 2>/dev/null | tr '\n' ' ')"
@@ -48,12 +48,13 @@ sed \
 echo
 echo "## This project"
 if [ -n "$SITE_LOGIN_EMAIL" ]; then
-    echo "- Sign in as \`$SITE_LOGIN_EMAIL\` / \`$SITE_LOGIN_PASSWORD\`. The landing path is \`$SITE_LANDING_PATH\`."
+    echo "- Sign in at \`$SITE_LOGIN_PATH\` as \`$SITE_LOGIN_EMAIL\` / \`$SITE_LOGIN_PASSWORD\`. The landing path is \`$SITE_LANDING_PATH\`."
 else
     echo "- No seeded login was found. Read the install command and the seeders to find one. The landing path is \`$SITE_LANDING_PATH\`."
 fi
 worker_names="$(background_workers | cut -d'|' -f1 | paste -sd, - | sed 's/,/, /g')"
 [ -n "$worker_names" ] && echo "- Workers: $worker_names."
+[ "$USES_REVERB" = "true" ] || echo "- No WebSocket server runs here, so a failed WebSocket in the browser console is expected. It is not a finding."
 project_context
 
 echo

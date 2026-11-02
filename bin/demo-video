@@ -27,6 +27,7 @@ DEMO_OUTPUT_DIR="$output_directory" \
     DEMO_SITE_URL="$SITE_URL" \
     DEMO_LOGIN_EMAIL="$SITE_LOGIN_EMAIL" \
     DEMO_LOGIN_PASSWORD="$SITE_LOGIN_PASSWORD" \
+    DEMO_LOGIN_PATH="$SITE_LOGIN_PATH" \
     DEMO_LANDING_PATH="$SITE_LANDING_PATH" \
     NODE_PATH="${NODE_PATH:-/opt/node22/lib/node_modules}" \
     node "$scenario"
