@@ -1,0 +1,10 @@
+[mysqld]
+# The databases hold only seed and test data, so durability is traded for test speed.
+skip-log-bin
+innodb_flush_log_at_trx_commit = 0
+innodb_doublewrite = 0
+innodb_buffer_pool_size = 3G
+innodb_redo_log_capacity = 1G
+performance_schema = OFF
+max_connections = 300
+log_bin_trust_function_creators = 1

@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Runs a Playwright scenario, then turns its recording into an mp4 a phone can play.
+#
+#   demo-video <scenario.cjs> [--max-mb 14]
+#
+# Writes .scratch/demo/<name>.mp4 and <name>.json (steps, console errors, failed requests).
+# Exits non-zero when the scenario fails; the partial video is kept, because it shows where.
+
+set -uo pipefail
+
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../lib.sh"
+
+scenario="${1:-}"
+max_megabytes=14
+[ "${2:-}" = "--max-mb" ] && max_megabytes="${3:-14}"
+
+if [ ! -f "$scenario" ]; then
+    echo "Usage: demo-video <scenario.cjs> [--max-mb 14]" >&2
+    exit 2
+fi
+
+output_directory="$ROOT_DIR/.scratch/demo"
+mkdir -p "$output_directory"
+touched_before="$(mktemp)"
+
+DEMO_OUTPUT_DIR="$output_directory" \
+    DEMO_SITE_URL="$SITE_URL" \
+    DEMO_LOGIN_EMAIL="$SITE_LOGIN_EMAIL" \
+    DEMO_LOGIN_PASSWORD="$SITE_LOGIN_PASSWORD" \
+    DEMO_LOGIN_PATH="$SITE_LOGIN_PATH" \
+    DEMO_LANDING_PATH="$SITE_LANDING_PATH" \
+    NODE_PATH="${NODE_PATH:-/opt/node22/lib/node_modules}" \
+    node "$scenario"
+scenario_status=$?
+
+latest_report="$(find "$output_directory" -maxdepth 1 -name '*.json' -newer "$touched_before" -print -quit)"
+rm -f "$touched_before"
+
+if [ -z "$latest_report" ]; then
+    echo "The scenario wrote no report: it did not call record()." >&2
+    exit 1
+fi
+
+name="$(basename "$latest_report" .json)"
+raw_video="$(python3 -I -c "import json,sys;print(json.load(open(sys.argv[1]))['rawPath'])" "$latest_report")"
+final_video="$output_directory/$name.mp4"
+
+encode() {
+    ffmpeg -y -loglevel error -i "$raw_video" \
+        -vf "fps=25,scale=1280:-2:flags=lanczos,format=yuv420p" \
+        -c:v libx264 -preset medium -profile:v high -level:v 4.0 \
+        "$@" -movflags +faststart -an "$final_video"
+}
+
+encode -crf 28 -maxrate 1500k -bufsize 3000k || exit 1
+
+size_megabytes=$(($(stat -c %s "$final_video") / 1048576))
+duration="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$final_video" | cut -d. -f1)"
+
+if [ "$size_megabytes" -gt "$max_megabytes" ] && [ "${duration:-0}" -gt 0 ]; then
+    encode -b:v "$((max_megabytes * 8000 / duration))k" || exit 1
+fi
+
+echo "Video: $final_video ($(du -h "$final_video" | cut -f1), ${duration}s)"
+echo "Report: $latest_report"
+
+exit "$scenario_status"

@@ -1,0 +1,66 @@
+{
+  "env": {
+    "COMPOSER_ALLOW_SUPERUSER": "1",
+    "BASH_DEFAULT_TIMEOUT_MS": "300000",
+    "BASH_MAX_TIMEOUT_MS": "1800000",
+    "NODE_PATH": "/opt/node22/lib/node_modules"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh api *)",
+      "Bash(php *)",
+      "Bash(herd *)",
+      "Bash(composer *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(vendor/bin/*)",
+      "Bash(./vendor/bin/*)",
+      "Bash(mysql *)",
+      "Bash(redis-cli *)",
+      "Bash(curl *)",
+      "Bash(ffmpeg *)",
+      "Bash(ffprobe *)",
+      "Bash(cloud-sync*)",
+      "Bash(demo-video *)",
+      "mcp__laravel-boost",
+      "mcp__playwright",
+      "mcp__ClickUp",
+      "mcp__github",
+      "mcp__claude-code-remote",
+      "mcp__Claude_Code_Remote"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ],
+  "disabledMcpjsonServers": [
+    "herd"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash __CLOUD_DIR__/session-start.sh",
+            "timeout": 600
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit|mcp__github__.*|mcp__.*merge.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/guard-bash.py"
+          }
+        ]
+      }
+    ]
+  }
+}
