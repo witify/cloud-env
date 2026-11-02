@@ -56,7 +56,7 @@ The values are kept in `/var/lib/cloud-env/detected.sh`, so a later checkout doe
 
 An optional `.claude/cloud.sh` in the project replaces any value or function of `defaults.sh`, and adds notes for the agent: see `templates/cloud.sh`. It is not needed on every branch, because a copy stays in the VM.
 
-A multi-tenant project needs this file. `tsa` is the known case: its seeder cannot run outside a tenant, its central routes need `CENTRAL_DOMAIN=localhost` and `CENTRAL_DOMAINS=localhost,127.0.0.1`, and its install command takes a name, an email and a password. So it needs a file that sets `project_env`, `install_application`, the login and its landing path. That file does not exist yet.
+A multi-tenant project needs this file. A typical one has a seeder that cannot run outside a tenant, central routes bound to one host, and an install command that takes a name, an email and a password. So its file sets `project_env`, `install_application`, the login and the landing path.
 
 The snapshot lasts about 7 days and is per branch. It follows new commits on that branch: the agent gets the new code, and `cloud-sync` catches up. So start sessions from `dev` and let the agent switch branch.
 
