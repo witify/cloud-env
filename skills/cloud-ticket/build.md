@@ -23,7 +23,7 @@ Unlabelled findings are **P1** (blocking correctness, security, data or spec fai
 
 Every commit names its ticket. Follow the convention of the repository's recent history; when it shows none, use `<type>: <what changed> (<ticket-id>)`. Commits that apply review findings use the type `review:`, such as `review: reuse InvoiceNumber helper (86abc123)`.
 
-Read the statuses of the ticket's list and pick the closest match; never invent one. When a ticket's implement sub-agent starts, move that ticket to `in progress`. When the pull request opens, move every ticket of the set to `in review`. Never mark a ticket done: a person does that after the merge.
+Read the statuses of the ticket's list and pick the closest match; never invent one. Move a ticket to `in progress` in the same response that starts its implement sub-agent, never before: a fix of the previous ticket may still be running. When the pull request opens, move every ticket of the set to `in review`. Never mark a ticket done: a person does that after the merge.
 
 ## 3. Pipeline
 
