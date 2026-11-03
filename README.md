@@ -16,7 +16,7 @@ This repository is public so the setup script can reach it. Keep it free of secr
 cloud-ticket https://app.clickup.com/t/<id>
 ```
 
-**The result.** A pull request to `dev`, the ticket in `in review` with a French summary at the top, before and after videos attached to the ticket and linked from the ticket and the pull request, and a push notification. The agent never merges.
+**The result.** A pull request to `dev`, the ticket in `in review` with the PR and video links at the top of its description, a French report and a retrospective in two `Agent :` comments, before and after videos attached to the ticket and linked from the ticket and the pull request, and a push notification. The agent never merges.
 
 A ticket with open product questions comes back to `todo` without its tag, with the questions in a comment. A run that cannot finish does the same and says where it stopped.
 

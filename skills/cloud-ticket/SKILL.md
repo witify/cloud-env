@@ -96,7 +96,7 @@ The rules in `CLAUDE.md` apply as usual, with the differences in the session con
 
 ## 5. Check it for real
 
-Run `cloud-sync` first, and read its output for `FAILED`: it migrates the application database and restarts the workers, and the build sub-agents did not. Then start the check sub-agent.
+Run `cloud-sync` first, and read its output for `FAILED`: it migrates the application database and restarts the workers, and the build sub-agents did not. Then run `php artisan migrate:status` and read it for `Pending`: a pending migration is a `FAILED` sync, even when `cloud-sync` said nothing (a migration outside the folders it watches, such as a client slice turned on during the build). Run `php artisan migrate --force`, and say so in the report. Then start the check sub-agent.
 
 Tests do not replace the screen. The sub-agent walks the changed path in the browser with `mcp__playwright__*` as the role that uses it, including an error case, reads the browser console, and lists the screens it really saw. A screen it could not reach goes under "Non vérifié". Fixes go to a fix sub-agent, then `cloud-sync`.
 
@@ -108,13 +108,22 @@ A change with no screen (a job, an import, a report) gets a proof in the report:
 
 1. **Send the videos you have** with `SendUserFile`, status `proactive`: `.scratch/demo/<name>-avant.mp4` and `.scratch/demo/<name>-apres.mp4`, together.
 2. **Attach each video to the parent ticket**: call `clickup_request_attachment_upload`, then `curl` the file at once with the method, url and field name it returns: the upload ticket expires after about a minute. The `curl` answer holds the `url` of the attachment: keep it.
-3. **Update the parent ticket**. At the top of its description, in simple French:
+3. **Update the parent ticket**. The connector replaces the whole description, so send it again with only these three lines added at the top, and nothing else changed:
 
    ```markdown
    **PR :** <url>
    **Vidéo avant :** [<nom du fichier>](<url de la pièce jointe>)
    **Vidéo après :** [<nom du fichier>](<url de la pièce jointe>)
+   ```
 
+4. **Add the same links to the pull request body**, with `mcp__github__update_pull_request`. A person must find the videos from either place.
+5. Move the parent and every ticket of the set to `in review`, and remove the tags `cloud-agent` and `ready-for-agent` from the parent. Never `Closed`: a person closes it after the merge. When `[PR n]` groups remain, say in the report how to start the next one: set the parent back to `todo` with the tag `ready-for-agent`.
+6. **Add the report as a comment** that starts with `Agent :` and links the pull request. The connector writes as a person, so the prefix tells readers who wrote it. The report never goes in the description. In simple French:
+
+   ```markdown
+   Agent : PR ouverte : <url>
+
+   ### Écart avec la spec
    ### Ce qui a été fait
    ### Choix à valider
    ### Bugs hors du ticket
@@ -124,13 +133,13 @@ A change with no screen (a job, an import, a report) gets a proof in the report:
    Lire le diff de la PR, puis : `<la commande du contexte de la session, avec le vrai nom de la branche>`
    ```
 
-4. **Add the same links to the pull request body**, with `mcp__github__update_pull_request`. A person must find the videos from either place.
-5. Move the parent and every ticket of the set to `in review`, and remove the tags `cloud-agent` and `ready-for-agent` from the parent. Never `Closed`: a person closes it after the merge. When `[PR n]` groups remain, say in the report how to start the next one: set the parent back to `todo` with the tag `ready-for-agent`.
-6. Add a comment that starts with `Agent :` and links the pull request. The connector writes as a person, so the prefix tells readers who wrote it.
-7. End with a notification and a short final message: PR url, video links, CI state, Codex state, the sub-agents you started, by piece name from section 4, the `[PR n]` groups that remain, and every check you did not do. Give no total for the sub-agents: a count from memory can be wrong. A check you did not run is reported as not run.
+   "Écart avec la spec" holds every choice that contradicts a sentence of the ticket, quoted, with what the code does instead and why. It is the first section of the report, of the comment and of the pull request body, apart from the other "Choix à valider". Omit the heading when there is none.
+7. **Write the retrospective** in `.scratch/retro/<id>-retro.md`, send it with `SendUserFile`, and add it as a second comment, `Agent : rétro`. It states facts: the timeline, the sub-agents by piece, the findings by priority and disposition, what was not checked, and each problem met during the run, with what happened and what it cost. It proposes no fix and no rule change: a person reads the problems and decides.
+8. End with a notification and a short final message: PR url, video links, CI state, Codex state, the sub-agents you started, by piece name from section 4, the `[PR n]` groups that remain, and every check you did not do. Give no total for the sub-agents: a count from memory can be wrong. A check you did not run is reported as not run.
 
 ## Limits
 
 - Never merge, never push to `dev` or `main`, never change `.github/workflows`. A hook refuses these. When the ticket needs one of them, stop at the pull request and say so.
 - What does not work in this VM is in the session context. Name it under "À vérifier sur un Mac". Real client data is never here: never present a guess about real data as a result.
 - Follow-up messages on a pull request go to this same session. Keep the branch; do not start over.
+- `PushNotification` is never in a parallel batch with another call, and never a draft: send it alone, with the final text only. A draft in a batch goes out.
