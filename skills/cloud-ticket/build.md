@@ -50,6 +50,9 @@ The title is the parent's title. The body is in simple French, for a reader with
 ## Résumé
 2 à 4 phrases : le problème, ce que la PR change.
 
+## Schéma de base de données
+Le tableau de la section 6 de `SKILL.md`. Omise quand la branche ne change ni le schéma ni les données.
+
 ## Changements
 - Une puce par ticket, avec le lien du ticket.
 

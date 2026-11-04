@@ -14,7 +14,6 @@
 
 project_context() {
     cat <<'EOF'
-- To let a person try a branch on a Mac: <how to do it>.
 - Does not work in this VM: <integrations with no keys, screens with no data>.
 EOF
 }

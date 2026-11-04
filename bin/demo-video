@@ -4,6 +4,7 @@
 #   demo-video <scenario.cjs> [--max-mb 14]
 #
 # Writes .scratch/demo/<name>.mp4 and <name>.json (steps, console errors, failed requests).
+# The spans the scenario ran off camera (sign-in, first load: `cuts` in the JSON) are cut out.
 # Exits non-zero when the scenario fails; the partial video is kept, because it shows where.
 
 set -uo pipefail
@@ -45,9 +46,17 @@ name="$(basename "$latest_report" .json)"
 raw_video="$(python3 -I -c "import json,sys;print(json.load(open(sys.argv[1]))['rawPath'])" "$latest_report")"
 final_video="$output_directory/$name.mp4"
 
+# select='not(between(t,a,b)+...)' drops the off-camera frames, setpts closes the gaps.
+cut_filter="$(python3 -I -c "
+import json, sys
+cuts = json.load(open(sys.argv[1])).get('cuts') or []
+spans = '+'.join(f'between(t,{start:.2f},{end:.2f})' for start, end in cuts)
+print(f\"select='not({spans})',setpts=N/25/TB,\" if spans else '')
+" "$latest_report")"
+
 encode() {
     ffmpeg -y -loglevel error -i "$raw_video" \
-        -vf "fps=25,scale=1280:-2:flags=lanczos,format=yuv420p" \
+        -vf "fps=25,${cut_filter}scale=1280:-2:flags=lanczos,format=yuv420p" \
         -c:v libx264 -preset medium -profile:v high -level:v 4.0 \
         "$@" -movflags +faststart -an "$final_video"
 }

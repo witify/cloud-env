@@ -1,5 +1,6 @@
 """Run with: python3 -m unittest discover tests"""
 import json
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -11,10 +12,20 @@ PRE_PUSH = ROOT / 'git-hooks' / 'pre-push'
 NO_SHA = '0' * 40
 
 
-def guard_denies(tool, tool_input, cwd):
+def guard_denies(tool, tool_input, cwd, env=None):
     event = {'tool_name': tool, 'tool_input': tool_input, 'cwd': cwd}
-    result = subprocess.run(['python3', '-I', str(GUARD)], input=json.dumps(event), capture_output=True, text=True, check=True)
+    result = subprocess.run(['python3', '-I', str(GUARD)], input=json.dumps(event), capture_output=True, text=True, check=True, env=env)
     return 'deny' in result.stdout
+
+
+# Answers `gh api <path>` from two JSON files, the way GitHub would.
+FAKE_GH = """#!/usr/bin/env python3
+import os, sys
+path = sys.argv[2]
+name = 'checks.json' if '/check-runs' in path else 'pull.json'
+print(open(os.path.join(os.environ['FAKE_GH_DIR'], name)).read())
+"""
+SHA = 'a' * 40
 
 
 class GuardTest(unittest.TestCase):
@@ -95,6 +106,63 @@ class GuardTest(unittest.TestCase):
             self.assertTrue(guard_denies('mcp__github__merge_pull_request', {}, directory))
             self.assertTrue(guard_denies('mcp__github__push_files', {}, directory))
             self.assertFalse(guard_denies('mcp__github__create_pull_request', {}, directory))
+
+
+class AutoMergeTest(unittest.TestCase):
+    MERGE = {'owner': 'witify', 'repo': 'app', 'pullNumber': 12, 'merge_method': 'merge'}
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        gh = pathlib.Path(self.directory.name) / 'gh'
+        gh.write_text(FAKE_GH)
+        gh.chmod(0o755)
+        self.env = {**os.environ, 'PATH': f'{self.directory.name}:{os.environ["PATH"]}', 'FAKE_GH_DIR': self.directory.name}
+
+    def github(self, pull=None, runs=None):
+        base_pull = {'state': 'open', 'draft': False, 'base': {'ref': 'dev'},
+                     'head': {'ref': 'feat/86abc-invoice-total', 'sha': SHA, 'repo': {'full_name': 'witify/app'}}}
+        base_runs = [{'name': 'tests', 'status': 'completed', 'conclusion': 'success'},
+                     {'name': 'lint', 'status': 'completed', 'conclusion': 'skipped'}]
+        check_runs = base_runs if runs is None else runs
+        (pathlib.Path(self.directory.name) / 'pull.json').write_text(json.dumps({**base_pull, **(pull or {})}))
+        (pathlib.Path(self.directory.name) / 'checks.json').write_text(json.dumps({'total_count': len(check_runs), 'check_runs': check_runs}))
+
+    def denies(self, tool_input=None):
+        return guard_denies('mcp__github__merge_pull_request', tool_input or self.MERGE, self.directory.name, self.env)
+
+    def test_green_feature_branch_into_dev_is_allowed(self):
+        self.github()
+        self.assertFalse(self.denies())
+
+    def test_fix_branch_is_allowed(self):
+        self.github(pull={'head': {'ref': 'fix/86abc-total', 'sha': SHA, 'repo': {'full_name': 'witify/app'}}})
+        self.assertFalse(self.denies())
+
+    def test_refused_cases(self):
+        cases = {
+            'base main': ({'base': {'ref': 'main'}}, None),
+            'closed': ({'state': 'closed'}, None),
+            'draft': ({'draft': True}, None),
+            'other branch': ({'head': {'ref': 'chore/x', 'sha': SHA, 'repo': {'full_name': 'witify/app'}}}, None),
+            'fork': ({'head': {'ref': 'feat/x', 'sha': SHA, 'repo': {'full_name': 'someone/app'}}}, None),
+            'failed check': (None, [{'name': 'tests', 'status': 'completed', 'conclusion': 'failure'}]),
+            'running check': (None, [{'name': 'tests', 'status': 'in_progress', 'conclusion': None}]),
+            'no check': (None, []),
+        }
+        for name, (pull, runs) in cases.items():
+            self.github(pull, runs)
+            self.assertTrue(self.denies(), name)
+
+    def test_bad_input_and_other_merge_paths_are_refused(self):
+        self.github()
+        self.assertTrue(self.denies({'owner': 'witify', 'repo': 'app'}))
+        self.assertTrue(self.denies({**self.MERGE, 'repo': 'app/../../x'}))
+        self.assertTrue(guard_denies('Bash', {'command': 'gh pr merge 12'}, self.directory.name, self.env))
+        self.assertTrue(guard_denies('Bash', {'command': 'gh api repos/witify/app/pulls/12/merge -X PUT'}, self.directory.name, self.env))
+
+    def test_unreadable_github_is_refused(self):
+        self.assertTrue(self.denies())
 
 
 class PrePushTest(unittest.TestCase):
