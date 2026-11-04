@@ -4,6 +4,11 @@ cloud session acts with a person's GitHub identity, so what must stay a human de
 refused here and not left to the model: merging, writing to the release branches, and changing
 the CI workflows, which run on a self-hosted machine.
 
+One merge is let through, for a ticket a person tagged `auto-merge`: mcp__github__merge_pull_request,
+when GitHub itself says the pull request is open, not a draft, from a feat/ or fix/ branch into dev,
+and every check run of its last commit passed. The guard cannot see the ClickUp tag: the skill
+checks it, and GitHub branch protection stays the hard limit.
+
 This stops mistakes and casual injections. It reads command text, so git-hooks/pre-push backs it
 up on real pushes, and only GitHub branch protection is a hard limit."""
 import json
@@ -37,9 +42,16 @@ GH_API_BODY_FLAGS = ('--field', '--raw-field', '--input')
 GH_API_FLAGS_WITH_VALUE = 'qtHp'
 SHELL_SEPARATORS = set(';|&()<>')
 
+AUTO_MERGE_TOOL = 'mcp__github__merge_pull_request'
+AUTO_MERGE_BASE = 'dev'
+AUTO_MERGE_HEADS = ('feat/', 'fix/')
+PASSED_CONCLUSIONS = ('success', 'neutral', 'skipped')
+
 GITHUB_FORBIDDEN_TOOLS = ('merge', 'push_files', 'create_or_update_file', 'delete_file', 'run_workflow', 'run_trigger', 'create_repository', 'fork_repository')
 
 MERGE_REASON = 'Merging stays with a person, after review.'
+AUTO_MERGE_REASON = ('Only an auto-merge is allowed: mcp__github__merge_pull_request on an open pull request from a '
+                     'feat/ or fix/ branch into dev, with every check run of its last commit passed. ')
 BRANCH_REASON = 'Push to a feature branch. The release branches change only through a merged pull request.'
 DELETE_REASON = 'Branch deletion stays with a person.'
 WORKFLOW_REASON = 'CI workflows run on a self-hosted machine: a change there needs a person. Say what must change in the report.'
@@ -134,6 +146,49 @@ def check_gh_api(command):
                 check_gh_api(token)
 
 
+def github_get(path):
+    result = subprocess.run(['gh', 'api', path], capture_output=True, text=True, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip()[:200] or 'gh api failed')
+    return json.loads(result.stdout)
+
+
+def auto_merge_problem(tool_input):
+    """What keeps this pull request from an auto-merge, read from GitHub, or None."""
+    owner, repo, number = tool_input.get('owner'), tool_input.get('repo'), tool_input.get('pullNumber')
+    name = re.compile(r'^[A-Za-z0-9_.-]+$')
+    if not (isinstance(owner, str) and isinstance(repo, str) and name.match(owner) and name.match(repo)):
+        return 'owner and repo are missing.'
+    if not str(number).isdigit():
+        return 'pullNumber is missing.'
+
+    try:
+        pull = github_get(f'repos/{owner}/{repo}/pulls/{number}')
+        sha = pull['head']['sha']
+        if not re.fullmatch(r'[0-9a-f]{40}', sha):
+            return 'the head commit is unreadable.'
+        runs = github_get(f'repos/{owner}/{repo}/commits/{sha}/check-runs?per_page=100')
+    except (RuntimeError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as error:
+        return f'GitHub could not be read: {error}'
+
+    if pull.get('state') != 'open' or pull.get('draft'):
+        return 'the pull request is not open, or is a draft.'
+    if pull.get('base', {}).get('ref') != AUTO_MERGE_BASE:
+        return f'the base is not {AUTO_MERGE_BASE}.'
+    if not pull.get('head', {}).get('ref', '').startswith(AUTO_MERGE_HEADS):
+        return 'the branch is not a feat/ or fix/ branch.'
+    if pull.get('head', {}).get('repo', {}).get('full_name') != f'{owner}/{repo}':
+        return 'the branch comes from a fork.'
+
+    check_runs = runs.get('check_runs') or []
+    if not check_runs or runs.get('total_count', 0) > len(check_runs):
+        return 'the check runs of the last commit are missing or too many to read.'
+    for run in check_runs:
+        if run.get('status') != 'completed' or run.get('conclusion') not in PASSED_CONCLUSIONS:
+            return f'the check {run.get("name")} has not passed.'
+    return None
+
+
 def check_bash(command, directory):
     if MERGE.search(command):
         deny(MERGE_REASON)
@@ -155,6 +210,11 @@ def main():
     tool = event.get('tool_name', '')
     tool_input = event.get('tool_input') or {}
 
+    if tool == AUTO_MERGE_TOOL:
+        problem = auto_merge_problem(tool_input)
+        if problem:
+            deny(AUTO_MERGE_REASON + 'Refused because ' + problem)
+        return
     if tool.startswith('mcp__github__') and any(name in tool for name in GITHUB_FORBIDDEN_TOOLS):
         deny(MERGE_REASON if 'merge' in tool else GITHUB_REASON)
     if tool in ('Edit', 'Write', 'NotebookEdit'):

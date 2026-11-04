@@ -16,7 +16,9 @@ This repository is public so the setup script can reach it. Keep it free of secr
 cloud-ticket https://app.clickup.com/t/<id>
 ```
 
-**The result.** A pull request to `dev`, the ticket in `in review` with the PR and video links at the top of its description, a French report and a retrospective in two `Agent :` comments, before and after videos attached to the ticket and linked from the ticket and the pull request, and a push notification. The agent never merges.
+**The result.** A pull request to `dev`, the ticket in `in review` with the PR and video links at the top of its description, a French report and a retrospective in two `Agent :` comments, before and after videos attached to the ticket and linked from the ticket and the pull request, and a push notification. The agent does not merge, unless the ticket has the tag `auto-merge`.
+
+**Auto-merge.** Add the tag `auto-merge` to the ticket, with `ready-for-agent`, to let the agent merge the pull request into `dev` itself when it judges the risk low: CI green, Codex approved, nothing left to validate, no schema change, a small diff that touches no sign-in, authorization, payment, dependency or configuration. The full list is in section 7 of `skills/cloud-ticket/SKILL.md`. Otherwise it leaves the pull request open and says why. Only a person adds the tag. The ticket stays in `in review` after the merge, for a person to check `dev` and close it.
 
 A ticket with open product questions comes back to `todo` without its tag, with the questions in a comment. A run that cannot finish does the same and says where it stopped.
 
@@ -30,7 +32,7 @@ A ticket with open product questions comes back to `todo` without its tag, with 
 | `session-start.sh`, `session-context.md` | A hook in the VM's `~/.claude/settings.json`, at every session start and resume. Starts the services, runs `cloud-sync`, gives the agent its context |
 | `bin/cloud-sync` | After every checkout. Updates only what changed: Composer, npm, migrations, assets. Then restarts the workers, checks that they are up, and says `FAILED` for a step or a worker that did not work |
 | `bin/demo-video`, `demo/` | When an agent records a video |
-| `hooks/guard-bash.py`, `git-hooks/pre-push` | Before every command and every push. Refuse a merge, a push to a release branch, a branch deletion, a change to `.github/workflows` |
+| `hooks/guard-bash.py`, `git-hooks/pre-push` | Before every command and every push. Refuse a merge, a push to a release branch, a branch deletion, a change to `.github/workflows`. Let through one merge: a pull request from a `feat/` or `fix/` branch into `dev` whose checks all passed, for the auto-merge |
 | `skills/cloud-ticket` | The ticket flow: `SKILL.md`, the build and its feedback loop (`build.md`) and the review brief (`review.md`). It lives here, with the scripts it calls, so one version number covers both |
 | `skills/loom` | Reads a Loom video of a ticket |
 | `config/` | PHP, MySQL, nginx and Claude Code settings. These exist only in the VM, so nothing changes on a Mac |
@@ -154,5 +156,6 @@ The agent reads untrusted text (tickets, PDFs, web pages) with a person's GitHub
 
 - **Self-hosted CI.** A workflow on a self-hosted runner runs code pushed from the cloud with no review, outside the network allowlist. Prefer `ubuntu-latest`.
 - **Branch protection.** Only GitHub can really refuse a push to `dev` or `main`. Require a pull request there, with no bypass for admins.
+- **Auto-merge.** The guard lets the agent merge into `dev` a pull request whose checks all passed. It cannot see the ClickUp tag, so an agent that ignores its skill could merge a green pull request without it. To keep a project out of the auto-merge, require an approving review on `dev`: the agent then cannot merge there at all, because it acts as the author of the pull request.
 - **The seeded password.** The session context holds the first user's password, read from the project. An install command must use a random password outside `local`.
 - **Keys in tracked files.** Every tracked file is in the VM, and the agent can read it. `.env` comes from `env.defaults`, `env.reverb` and `project_env`, and `.env.example` is not copied to it, but it is in the checkout: keep it free of real keys.
