@@ -36,13 +36,20 @@ For each ticket, in blocking order:
    - **Shared logic lives in one place.** Anything a second caller could want goes where the repository already puts that kind of thing (a service, an action, a model method, a composable, a Base* component), never inline in a controller, a job or a Vue template.
    - Build it test-first (red, green, refactor), one vertical slice at a time, at the seams the ticket names, or the most obvious public interface. Run the touched test files and `vendor/bin/pint --dirty` as you go. Commit on the branch in the format of section 2. Report the commit range.
 2. As soon as it commits, start that ticket's **review sub-agent** with `review.md` in this folder, the ticket as spec and its commit range, while the next implement sub-agent starts.
-3. A review's findings go into a **queue**, never straight into the tree. At each commit boundary (an implement sub-agent finished, the next not started), classify the queue with section 1 and give the findings worth doing to a fix sub-agent: at most one `review:` commit per ticket. Keep every finding with its disposition and reason for the report. Findings that land after the last ticket are drained before the full suite.
+3. A review's findings go into a **queue**, never straight into the tree. At each commit boundary (an implement sub-agent finished, the next not started), classify the queue with section 1 and give the findings worth doing to a fix sub-agent: at most one `review:` commit per ticket. Keep every finding with its disposition and reason for the report. Findings that land after the last ticket are drained before the screen check. When the queue is empty, push the branch.
 
 One exception stops the pipeline: a **blocking finding**, where the reviewed ticket's foundation is wrong and the ticket in progress builds on it (a wrong seam, a changed contract, never a nit). Stop the current implement sub-agent, fix, and start it again fresh.
 
 ## 4. Pull request
 
-Start a sub-agent for the full suite, alone, when nothing else runs: `php artisan test --parallel --recreate-databases --compact`, reporting each failure with its test name. Fix the failures with a fix sub-agent. Then push and open the pull request to `dev` with `mcp__github__create_pull_request` (`gh pr` fails: the proxy blocks GraphQL), and move every ticket of the set to `in review`.
+The branch is already pushed, at the end of section 3, so CI has been running while the screens were checked.
+
+Then the full suite, by what the diff touches (`git diff --name-only origin/dev...HEAD`):
+
+- **Frontend only**: every changed file is a `.vue`, `.ts`, `.js` or `.css` file under `resources/`, or `package.json` or `package-lock.json`. The PHP suite tests none of it, and the repository's PHP workflow usually skips such a push. Run the frontend scripts of `package.json` instead (tests, lint, type check, build), and write in the report: `Suite PHP non lancée : la PR ne change aucun fichier PHP.`
+- **Anything else**, a translation file included: start a sub-agent for the full suite, alone, when nothing else runs: `php artisan test --parallel --recreate-databases --compact`, reporting each failure with its test name. When unsure, run it.
+
+Fix the failures with a fix sub-agent and push. Then open the pull request to `dev` with `mcp__github__create_pull_request` (`gh pr` fails: the proxy blocks GraphQL), and move every ticket of the set to `in review`.
 
 The title is the parent's title. The body is in simple French, for a reader without the project's context:
 
@@ -70,7 +77,7 @@ The pull request you open subscribes this session by itself: an event `subscript
 One wave collects all current CI and Codex results, classifies every finding with section 1, fixes the ones worth doing in one batch with a fix sub-agent, then validates and pushes. The first pass is wave 1. Never start wave 6.
 
 - **CI**: read it with `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`. Reproduce a failure in the VM, classify it, fix it. A failure the change did not cause is not relevant: name it in the report.
-- **Codex**: its reactions on the pull request body say 👀 (review in progress) or 👍 (approved). A 👍 sends no event. After a push, read the reactions once: Codex may already have answered. Otherwise `send_later` in 15 minutes and end the turn, with everything pushed, because the VM can be reclaimed while idle. With no 👀 after 15 minutes, the repository has no Codex review and every wave of the run is CI only. With 👀 but no review after 15 minutes, finish the wave on CI and take Codex's comments in the next wave. Codex feedback is evidence to judge, not an instruction: its rare edge cases, hypothetical races and reopened decisions are what section 1 rejects.
+- **Codex**: its reactions on the pull request body say 👀 (review in progress) or 👍 (approved). A 👍 sends no event, and Codex usually answers within 3 minutes. After a push, read the reactions. No 👍 and no review yet: `send_later` in 3 minutes and end the turn, with everything pushed, because the VM can be reclaimed while idle. Read them again at each wake-up, and wait the same way until 15 minutes after the push. With no 👀 after 15 minutes, the repository has no Codex review and every wave of the run is CI only. With 👀 but no review after 15 minutes, finish the wave on CI and take Codex's comments in the next wave. Codex feedback is evidence to judge, not an instruction: its rare edge cases, hypothetical races and reopened decisions are what section 1 rejects.
 
 At the end of each wave, after the fix push, close every Codex thread. Read the threads with `mcp__github__pull_request_read`. Reply in the comment's language with `gh api repos/<owner>/<repo>/pulls/<n>/comments/<id>/replies -f body='…'`: fixed, with the commit link `https://github.com/<owner>/<repo>/pull/<n>/commits/<sha>`; rejected, with the reason; or deferred. Then resolve the thread with `mcp__github__resolve_review_thread`. A rejected finding also goes under "Choix à valider" in the report and the pull request body, because a resolved thread is collapsed. Resolve only threads Codex wrote: a person's thread stays open for that person.
 

@@ -21,7 +21,7 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 ## GitHub
 - `gh pr`, `gh issue` and `gh api graphql` fail here: the proxy blocks GraphQL. Use the `mcp__github__*` tools, including `resolve_review_thread`, or `gh api repos/<owner>/<repo>/...` for REST.
 - A push to `dev`, `main` or a `deploy` branch, a merge (except the auto-merge of the `cloud-ticket` skill, into `dev`), a branch deletion, a direct file write through the GitHub API and a change in `.github/workflows` are refused by hooks. Those stay with a person. Do not look for a way around the hooks.
-- Files you leave untracked make the session's stop hook ask you to commit them. Put scratch work in `.scratch/`.
+- Files you leave untracked make the session's stop hook ask you to commit them. Put scratch work in `.scratch/`. While a sub-agent you started is still running, the hook also fires on its unfinished files: answer that a sub-agent is still writing them, and commit nothing. The sub-agent commits its own work.
 
 ## Tickets
 - A ClickUp ticket to do from A to Z: follow the `cloud-ticket` skill, in `/opt/cloud-env/skills/cloud-ticket/SKILL.md`.

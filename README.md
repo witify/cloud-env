@@ -33,7 +33,7 @@ A ticket with open product questions comes back to `todo` without its tag, with 
 | `bin/cloud-sync` | After every checkout. Updates only what changed: Composer, npm, migrations, assets. Then restarts the workers, checks that they are up, and says `FAILED` for a step or a worker that did not work |
 | `bin/demo-video`, `demo/` | When an agent records a video |
 | `hooks/guard-bash.py`, `git-hooks/pre-push` | Before every command and every push. Refuse a merge, a push to a release branch, a branch deletion, a change to `.github/workflows`. Let through one merge: a pull request from a `feat/` or `fix/` branch into `dev` whose checks all passed, for the auto-merge |
-| `skills/cloud-ticket` | The ticket flow: `SKILL.md`, the build and its feedback loop (`build.md`) and the review brief (`review.md`). It lives here, with the scripts it calls, so one version number covers both |
+| `skills/cloud-ticket` | The ticket flow: `SKILL.md`, the build and its feedback loop (`build.md`), the review brief (`review.md`) and the text every sub-agent prompt starts with (`brief.md`). It lives here, with the scripts it calls, so one version number covers both |
 | `skills/loom` | Reads a Loom video of a ticket |
 | `config/` | PHP, MySQL, nginx and Claude Code settings. These exist only in the VM, so nothing changes on a Mac |
 

@@ -26,6 +26,17 @@ The video opens on `startPath`, already signed in and already loaded. The sign-i
 
 When a ticket changes an existing screen, record the "before" first, from the unchanged code at the start of the work: `<name>-avant.cjs`, then `<name>-apres.cjs` with the same steps. A person compares them side by side.
 
+## Data the story needs
+
+The video proves the change only when the screen holds the case the ticket is about: a sort needs rows that differ in that column, a filter needs rows it keeps and rows it hides, an error needs the input that causes it. The demo data often lacks that case. Create the minimum before the before video, so both videos show the same rows: through the screens inside `offCamera()`, or in the application database with `php artisan tinker --execute '<code>'` and the project's factories. Say in the report what you created.
+
+## Overlays
+
+An onboarding tour, a "what's new" dialog or a cookie banner can cover the screen on a first visit. Find how the application remembers that it was closed (often a `localStorage` key or a user setting: grep the component that shows it), and set that inside `offCamera()` before the story starts. Look at the first frame: an overlay there means a new recording.
+
 ## What a video cannot show
 
-The session context names what does not work in this VM: integrations with no keys, screens with no data. Name them in the report under "Non vérifié", with the reason.
+- Integrations with no keys and anything else the session context says does not work in this VM.
+- A PDF: headless Chromium shows a PDF viewer as an empty frame. Show the screen that opens it, and say in the report that the PDF itself is not in the video.
+
+Name each under "Non vérifié", with the reason.
