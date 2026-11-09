@@ -8,7 +8,7 @@ This repository is public so the setup script can reach it. Keep it free of secr
 
 ## Use it
 
-**From ClickUp.** Add the tag `ready-for-agent` to a top-level ticket in status `todo`. The check, one scheduled task for all projects, sees it at the next hourly run. To go now: **Run now** on the check, at claude.ai/code/routines. This path needs no approval.
+**From ClickUp.** Add the tag `agent:ready` to a top-level ticket in status `todo`. The check, one scheduled task for all projects, sees it at the next hourly run. To go now: **Run now** on the check, at claude.ai/code/routines. This path needs no approval.
 
 **One ticket, by hand.** On claude.ai/code, start a session with the environment `Witify Laravel`, the project's repository, the branch `dev` and the mode `Auto`. This path can stop at a ClickUp write for your approval, so keep the session open.
 
@@ -16,11 +16,11 @@ This repository is public so the setup script can reach it. Keep it free of secr
 cloud-ticket https://app.clickup.com/t/<id>
 ```
 
-**The result.** A pull request to `dev`, the ticket in `in review` with the PR and video links at the top of its description, a French report and a retrospective in two `Agent :` comments, before and after videos attached to the ticket and linked from the ticket and the pull request, and a push notification. The agent does not merge, unless the ticket has the tag `auto-merge`.
+**The result.** A pull request to `dev`, the ticket in `in review` with the PR and video links at the top of its description, a French report and a retrospective in two `Agent :` comments, before and after videos attached to the ticket and linked from the ticket and the pull request, and a push notification. The agent does not merge, unless the ticket has the tag `agent:auto-merge`.
 
-**Auto-merge.** Add the tag `auto-merge` to the ticket, with `ready-for-agent`, to let the agent merge the pull request into `dev` itself when it judges the risk low: CI green, Codex approved, nothing left to validate, no schema change, a small diff that touches no sign-in, authorization, payment, dependency or configuration. The full list is in section 7 of `skills/cloud-ticket/SKILL.md`. Otherwise it leaves the pull request open and says why. Only a person adds the tag. The ticket stays in `in review` after the merge, for a person to check `dev` and close it.
+**Auto-merge.** Add the tag `agent:auto-merge` to the ticket, with `agent:ready`, to let the agent merge the pull request into `dev` itself when it judges the risk low: CI green, Codex approved, nothing left to validate, no schema change, a small diff that touches no sign-in, authorization, payment, dependency or configuration. The full list is in section 7 of `skills/cloud-ticket/SKILL.md`. Otherwise it leaves the pull request open and says why. Only a person adds the tag. The ticket stays in `in review` after the merge, for a person to check `dev` and close it.
 
-**Fable and effort.** Add the tag `model-fable`, a tag `effort-<level>` (`low`, `medium`, `high`, `xhigh` or `max`), or both, to the ticket with `ready-for-agent`. Its implement, review and fix sub-agents then run on Fable with the first, Anthropic's most capable model, which costs more per token than Opus, and with that effort with the second. The videos, the full suite, the screen check and the orchestration stay on the worker's model and effort, because a session cannot change its own. The report and the retrospective name the model and the effort of each piece. Only a person adds the tags. The details are in section 4 of `skills/cloud-ticket/SKILL.md`. This path is not tested in a live run yet.
+**Fable and effort.** Add the tag `agent:model:fable`, a tag `agent:effort:<level>` (`low`, `medium`, `high`, `xhigh` or `max`), or both, to the ticket with `agent:ready`. Its implement, review and fix sub-agents then run on Fable with the first, Anthropic's most capable model, which costs more per token than Opus, and with that effort with the second. The videos, the full suite, the screen check and the orchestration stay on the worker's model and effort, because a session cannot change its own. The report and the retrospective name the model and the effort of each piece. Only a person adds the tags. The details are in section 4 of `skills/cloud-ticket/SKILL.md`. This path is not tested in a live run yet.
 
 A ticket with open product questions comes back to `todo` without its tag, with the questions in a comment. A run that cannot finish does the same and says where it stopped.
 
@@ -113,8 +113,8 @@ Check ClickUp for tickets that wait for a cloud agent, in the projects of this t
 
 The list ids are every list id of the table. A task belongs to the line of its home list, list.id in the task.
 
-1. Stuck agent runs: call clickup_filter_tasks with list_ids [the list ids], tags ["cloud-agent"], statuses ["in progress"], subtasks false. For each task not updated for 6 hours or more: add a comment "Agent : cette execution semble bloquee, aucune activite depuis 6 heures. Je remets le ticket en todo sans le tag.", set its status to todo, and remove the tags cloud-agent and ready-for-agent. Only the tag cloud-agent marks a run: a task with only ready-for-agent in that status is not yours to change.
-2. New tickets: call clickup_filter_tasks with list_ids [the list ids], tags ["ready-for-agent"], statuses ["todo"], subtasks false. Drop a task whose home list is not in the table.
+1. Stuck agent runs: call clickup_filter_tasks with list_ids [the list ids], tags ["agent:running"], statuses ["in progress"], subtasks false. For each task not updated for 6 hours or more: add a comment "Agent : cette execution semble bloquee, aucune activite depuis 6 heures. Je remets le ticket en todo sans le tag.", set its status to todo, and remove the tags agent:running and agent:ready. Only the tag agent:running marks a run: a task with only agent:ready in that status is not yours to change.
+2. New tickets: call clickup_filter_tasks with list_ids [the list ids], tags ["agent:ready"], statuses ["todo"], subtasks false. Drop a task whose home list is not in the table.
 3. Blocked tickets: for each new ticket, call clickup_get_task with include ["dependencies"]. When it waits on a task, call clickup_get_task on that task. A ticket that waits on a task whose status is not of type done or closed is blocked: leave it as it is, with no comment.
 4. No new ticket that is not blocked, and no stuck run: reply "Aucun ticket" and stop.
 5. For each project, its new tickets that are not blocked, oldest first, at most 3: call mcp__Claude_Code_Remote__fire_trigger with the worker trigger id of that project's line and text "ClickUp task <id>", with the task id only.
@@ -133,7 +133,7 @@ Five limits decide this shape, all seen in live tests:
 - `fire_trigger` refuses a task that was created through the API. Create the worker with the `create_trigger` tool, then set its repository, model and connectors through the API or on the web.
 - The check is the opposite. Create it through the API: a check created with the `create_trigger` tool stops at `fire_trigger` for an approval nobody gives.
 - `subscribe_pr_activity` through the `Claude_Code_Remote` connector stops for an approval. The worker does not need it: a pull request opened in a scheduled run subscribes the session by itself.
-- The check matches `cloud-agent`, not `ready-for-agent`, for stuck runs: older tickets can hold `ready-for-agent` with no run behind them.
+- The check matches `agent:running`, not `agent:ready`, for stuck runs: older tickets can hold `agent:ready` with no run behind them.
 
 The web form saves no task without a schedule, and the API keeps every connector on create, whatever `mcp_connections` says. So the worker, which has no schedule, has its connectors set through the API, or on the web with a schedule removed through the API after the save.
 

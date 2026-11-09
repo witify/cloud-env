@@ -4,7 +4,7 @@ cloud session acts with a person's GitHub identity, so what must stay a human de
 refused here and not left to the model: merging, writing to the release branches, and changing
 the CI workflows, which run on a self-hosted machine.
 
-One merge is let through, for a ticket a person tagged `auto-merge`: mcp__github__merge_pull_request,
+One merge is let through, for a ticket a person tagged `agent:auto-merge`: mcp__github__merge_pull_request,
 when GitHub itself says the pull request is open, not a draft, from a feat/ or fix/ branch into dev,
 and every check run of its last commit passed. The guard cannot see the ClickUp tag: the skill
 checks it, and GitHub branch protection stays the hard limit.
