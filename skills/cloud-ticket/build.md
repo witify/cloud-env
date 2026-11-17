@@ -4,7 +4,7 @@ How the set of tickets becomes one reviewed pull request. It comes from `/ship` 
 
 One implement sub-agent and one review sub-agent per ticket, in blocking order, on one branch and one pull request to `dev`, then at most five feedback waves. Code that lands here reuses what the repository already has and leaves shared logic in one place.
 
-With the label `agent:ultracode` on the parent, section 3 does not apply: "Ultracode" in section 4 of `SKILL.md` says what replaces it. Sections 1, 2, 4 and 5 still apply.
+With the label `agent:ultracode` on the parent, section 3 does not apply: "Ultracode" in section 4 of `SKILL.md` says what replaces it. Sections 1, 2, 4 and 5 still apply, run with workflows.
 
 ## 1. What gets fixed
 
