@@ -24,5 +24,5 @@ Where this differs from `CLAUDE.md`, this text is right: `CLAUDE.md` describes a
 - Files you leave untracked make the session's stop hook ask you to commit them. Put scratch work in `.scratch/`. While a sub-agent you started is still running, the hook also fires on its unfinished files: answer that a sub-agent is still writing them, and commit nothing. The sub-agent commits its own work.
 
 ## Tickets
-- A ClickUp ticket to do from A to Z: follow the `cloud-ticket` skill, in `/opt/cloud-env/skills/cloud-ticket/SKILL.md`.
+- A Navark ticket to do from A to Z: follow the `cloud-ticket` skill, in `/opt/cloud-env/skills/cloud-ticket/SKILL.md`.
 - Skills that are plugins on the Mac are linked in `~/.claude/skills` under their short name: `sprintify-ui`, not `witify-skills:sprintify-ui`. If a skill cannot be invoked because it has `disable-model-invocation`, read its `SKILL.md` and follow it.

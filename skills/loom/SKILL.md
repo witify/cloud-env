@@ -1,6 +1,6 @@
 ---
 name: loom
-description: Analyze a Loom video in detail — transcript with speakers, chapters, and actual frames inspected via ffmpeg. Use when the user shares a loom.com link, or when one appears inside material being worked (a ClickUp or Linear task, a grill, a spec) and its content matters to the task.
+description: Analyze a Loom video in detail — transcript with speakers, chapters, and actual frames inspected via ffmpeg. Use when the user shares a loom.com link, or when one appears inside material being worked (a Navark or Linear issue, a grill, a spec) and its content matters to the task.
 ---
 
 # Loom
@@ -59,10 +59,10 @@ Tighten `fps` around dense passages. A sweep over a remote URL decodes the whole
 
 ## 5. Attaching frames to a tracker
 
-When the deliverable is a ClickUp or Linear task with screenshots, budget the uploads — they cost more wall-clock than the entire video analysis. Default to the **4–6 frames** that actually carry the report; attach more only when asked.
+When the deliverable is a Navark or Linear issue with screenshots, budget the uploads — they cost more wall-clock than the entire video analysis. Default to the **4–6 frames** that actually carry the report; attach more only when asked.
 
 - **Linear (MCP)**: strictly one file at a time — `prepare_attachment_upload` → raw `PUT` → `create_attachment_from_upload`. The signed URL dies in **60 s**, so the `PUT` must be the immediate next call, written as one minimal `curl -X PUT --data-binary @file -H <the exact signed headers> "<url>"` line; an `ExpiredToken` means re-prepare, not a failure. Uploaded assetUrls render inline in the description as `![…](assetUrl)`.
-- **ClickUp**: `clickup_attach_task_file` takes a public URL or <200 KB base64; local files go through `clickup_request_attachment_upload`.
+- **Navark**: `upload_attachment` takes a public https URL (at most 25 MB) or base64 inside the call (at most 2 MB). It has no signed upload for a local file, so from a VM only a small image written as base64 works: keep frames small (scaled down, JPEG), and send the rest with `SendUserFile`.
 
 ## 6. Report
 

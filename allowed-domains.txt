@@ -14,8 +14,7 @@ packagist.org
 repo.packagist.org
 ui.sprintify.app
 generator.sprintify.app
-*.clickup.com
-*.clickup-attachments.com
+navark.laravel.cloud
 *.loom.com
 *.happyscribe.com
 ppa.launchpadcontent.net

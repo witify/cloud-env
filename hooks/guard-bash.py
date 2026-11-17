@@ -6,7 +6,7 @@ the CI workflows, which run on a self-hosted machine.
 
 One merge is let through, for a ticket a person tagged `agent:auto-merge`: mcp__github__merge_pull_request,
 when GitHub itself says the pull request is open, not a draft, from a feat/ or fix/ branch into dev,
-and every check run of its last commit passed. The guard cannot see the ClickUp tag: the skill
+and every check run of its last commit passed. The guard cannot see the Navark label: the skill
 checks it, and GitHub branch protection stays the hard limit.
 
 This stops mistakes and casual injections. It reads command text, so git-hooks/pre-push backs it
