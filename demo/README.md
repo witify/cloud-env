@@ -24,7 +24,7 @@ The video opens on `startPath`, already signed in and already loaded. The sign-i
 
 ## Before and after
 
-When a ticket changes an existing screen, record the "before" first, from the unchanged code at the start of the work: `<name>-avant.cjs`, then `<name>-apres.cjs` with the same steps. A person compares them side by side. The before story shows only what the after story shows changed: no step for what already works. Make `<name>-apres.cjs` with `cp` from the before file, then edit the copy.
+When a ticket changes an existing screen, record the "before" first, from the unchanged code at the start of the work: `<name>-avant.cjs`, then `<name>-apres.cjs` with the same steps. A person compares them side by side. The before story shows only what the after story shows changed: no step for what already works. Make `<name>-apres.cjs` with `cp` from the before file, then edit the copy. Change the first argument of `record()` to `<name>-apres` first: with the old name, the run replaces the before video.
 
 ## Data the story needs
 

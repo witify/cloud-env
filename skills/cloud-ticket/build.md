@@ -44,11 +44,11 @@ One exception stops the pipeline: a **blocking finding**, where the reviewed tic
 
 ## 4. Pull request
 
-The branch is already pushed, at the end of section 3, so CI has been running while the screens were checked.
+The branch is already pushed, at the end of section 3, so CI has been running while the screens were checked. When the screen check added a commit, push it now: the check runs below and the pull request must be on the last commit.
 
 Then the full suite, by what the diff touches (`git diff --name-only origin/dev...HEAD`):
 
-- **Frontend only**: every changed file is a `.vue`, `.ts`, `.js` or `.css` file under `resources/`, or `package.json` or `package-lock.json`. The PHP suite tests none of it, and the repository's PHP workflow usually skips such a push. Run the frontend scripts of `package.json` instead (tests, lint, type check, build), and write in the report: `Suite PHP non lancée : la PR ne change aucun fichier PHP.`
+- **Frontend only**: every changed file is a `.vue`, `.ts`, `.js` or `.css` file under `resources/`, or `package.json` or `package-lock.json`. The PHP suite tests none of it, and the repository's PHP workflow usually skips such a push. Run the frontend scripts of `package.json` instead (tests, lint, type check; the `assets: rebuilt` line of `cloud-sync` is the build check, as `brief.md` says), and write in the report: `Suite PHP non lancée : la PR ne change aucun fichier PHP.`
 - **Anything else**, a translation file included: the push of section 3 started CI on this commit, so read it first, with `gh api repos/<owner>/<repo>/commits/$(git rev-parse HEAD)/check-runs`. When the job of `.github/workflows` that runs the whole PHP suite (`php artisan test` or `phpunit`, with no filter and no path) is `completed` with `success` on this commit, do not run the suite again in the VM, and write in the report: `Suite PHP : verte en CI sur <sha> (check <nom>), non relancée dans la VM.` In every other case (no such job, no check on this commit, a check that still runs or failed, a doubt), start a sub-agent for the full suite, alone, when nothing else runs: `php artisan test --parallel --recreate-databases --compact`, reporting each failure with its test name. When unsure, run it.
 
 Fix the failures with a fix sub-agent and push. Then open the pull request to `dev` with `mcp__github__create_pull_request` (`gh pr` fails: the proxy blocks GraphQL), and move every ticket of the set to `in review`.
@@ -57,7 +57,10 @@ The title is the parent's title. The body is in simple French, for a reader with
 
 ```markdown
 **Ticket :** <url du ticket parent>
-**Vidéos :** <la ligne de l'étape 4 de la section 6 de `SKILL.md`, avec ou sans vidéo>
+**Vidéos :** <la suite de la ligne « Vidéos » de l'étape 4 de la section 6 de `SKILL.md`, avec ou sans vidéo>
+
+## Écart avec la spec
+Chaque choix qui contredit une phrase du ticket, citée, avec ce que le code fait à la place et pourquoi. Omise s'il n'y en a pas.
 
 ## Résumé
 2 à 4 phrases : le problème, ce que la PR change.
@@ -77,7 +80,7 @@ Choix à valider, dette assumée, hors du périmètre, bugs hors du ticket avec 
 
 ## 5. Feedback loop: five waves at most
 
-Nothing wakes this session after its last turn: a routine run gets no event from the pull request and has no tool to send itself a message later. So the loop runs inside the turn, with everything pushed. `pr-wait <pull request number>` waits until every check run of the last commit is complete and Codex has answered for that commit, then prints the state of both. It stops at the latest 15 minutes after the pull request opened, or after its last commit in a later wave. Run it from the repository, with a timeout of 20 minutes. Never call `subscribe_pr_activity`: in a routine run it stops for an approval nobody gives. Never poll with `sleep`.
+Nothing wakes this session after its last turn: a routine run gets no event from the pull request and has no `send_later` tool. A wake-up from `ScheduleWakeup` or `CronCreate` is not tested in a routine run: never end the turn to wait on one. So the loop runs inside the turn, with everything pushed. `pr-wait <pull request number>` waits until every check run of the last commit is complete and Codex has answered for that commit, then prints the state of both. It stops at the latest 15 minutes after its first call for that commit, so call it right after the pull request opens, and right after each fix push. Run it from the repository, with a timeout of 20 minutes. Exit 2 (`pr-wait: the pull request could not be read`) means GitHub did not answer: run it once more, then report CI and Codex as not known under "PR, CI et Codex". When its first line ends with `closed` or `merged`, a person took the pull request: stop the loop, push nothing, and say so in the report. Never call `subscribe_pr_activity`: in a routine run it stops for an approval nobody gives. Never poll with `sleep`.
 
 One wave runs `pr-wait`, takes all current CI and Codex results, classifies every finding with section 1, fixes the ones worth doing in one batch with a fix sub-agent, then validates and pushes. The first pass is wave 1. Never start wave 6.
 
@@ -86,6 +89,6 @@ One wave runs `pr-wait`, takes all current CI and Codex results, classifies ever
 
 At the end of each wave, after the fix push, close every Codex thread. Read the threads with `mcp__github__pull_request_read`. Reply in the comment's language with `gh api repos/<owner>/<repo>/pulls/<n>/comments/<id>/replies -f body='…'`: fixed, with the commit link `https://github.com/<owner>/<repo>/pull/<n>/commits/<sha>`; rejected, with the reason; or deferred. Then resolve the thread with `mcp__github__resolve_review_thread`. A rejected finding also goes under "Choix à valider" in the report and the pull request body, because a resolved thread is collapsed. Resolve only threads Codex wrote: a person's thread stays open for that person.
 
-Stop when CI is green, Codex approves or the run is CI only, and nothing worth doing remains. After wave 5, stop and report what is still open.
+Stop after a wave that pushes no fix: a second `pr-wait` on the same commit does not wait again and prints the same lines. The run ends clean when CI is `passed` and Codex is `approved` or `absent`. Report every other state as it is, never as green or approved: `ci: pending`, `ci: none`, a `ci: failed` the change did not cause, `codex: reviewing`, `codex: older-commit`, `codex: findings` that were all rejected. After wave 5, stop and report what is still open.
 
 The report of section 6 in `SKILL.md` names: each ticket with its commits and status, the findings by priority and disposition with reasons (including each duplicate of existing code and what it now reuses), the concurrency assumption, and, under "PR, CI et Codex", the waves used, the Codex state and the threads answered, and the CI state.

@@ -4,29 +4,33 @@
     pr-wait <pull request number> [--minutes 15]
 
 A session that ends its turn to wait needs something to wake it, and a routine run may have
-nothing: no subscription to the pull request, no tool to schedule a message. So this command
-waits instead, and the turn stays open.
+nothing: no subscription to the pull request, no `send_later` tool. So this command waits
+instead, and the turn stays open.
 
 It returns as soon as every check run of the last commit is complete and Codex has answered for
 that commit. Codex shows a sign within seconds when it reviews a commit, so with no sign of it
-after 5 minutes the wait is for CI only. Otherwise it returns N minutes after the later of the
-pull request's creation and its last commit: a second call in the same wave does not wait again.
+after 5 minutes the wait is for CI only. Otherwise it returns N minutes after its first call for
+that commit: a second call in the same wave does not wait again.
 
-Exit 0: both are known. Exit 1: the time ran out, and the lines say what is still pending.
-Exit 2: the pull request could not be read."""
+Exit 0: both are known. Exit 1: the time ran out, or the pull request is closed or merged, and
+the lines say what is still pending. Exit 2: the pull request could not be read."""
 import datetime
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 
 POLL_SECONDS = 20
 QUIET_MINUTES = 5
+FAILED_READS_ALLOWED = 3
+PASSED_CONCLUSIONS = ('success', 'neutral', 'skipped')
 ANSWERED = ('approved', 'findings')
 NO_REVIEW_OF_THIS_COMMIT = ('absent', 'older-commit')
-PASSED_CONCLUSIONS = ('success', 'neutral', 'skipped')
 CODEX_STATE = re.compile(r'codex-review-state:v\d+\s+(\{.*?\})\s*-->', re.DOTALL)
+STATE_DIRECTORIES = (os.environ.get('PR_WAIT_STATE_DIR'), '/var/lib/cloud-env', tempfile.gettempdir())
 
 
 class GitHubError(Exception):
@@ -53,6 +57,23 @@ def repository():
 
 def timestamp(value):
     return datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
+
+
+def first_call(repo, number, sha):
+    """When this command first saw this commit: the wait counts from there, in every wave."""
+    name = 'pr-wait-' + re.sub(r'\W', '-', f'{repo}-{number}')
+    for directory in filter(None, STATE_DIRECTORIES):
+        path = os.path.join(directory, name)
+        try:
+            seen = json.load(open(path)) if os.path.exists(path) else {}
+            if sha not in seen:
+                seen = {sha: time.time()}
+                with open(path, 'w') as file:
+                    json.dump(seen, file)
+            return float(seen[sha])
+        except (OSError, ValueError, TypeError):
+            continue
+    return time.time()
 
 
 def is_codex(user):
@@ -86,9 +107,11 @@ def codex_summary(comments):
     return None
 
 
-def codex_state(repo, number, sha):
+def codex_state(repo, number, sha, committed):
+    # Codex puts a new thumbs up at each approval: one older than the last commit is for an older commit.
     reactions = {reaction.get('content') for reaction in github(f'repos/{repo}/issues/{number}/reactions?per_page=100')
-                 if is_codex(reaction.get('user'))}
+                 if is_codex(reaction.get('user'))
+                 and (reaction.get('content') != '+1' or timestamp(reaction.get('created_at') or '1970-01-01T00:00:00Z') >= committed)}
     comments = github(f'repos/{repo}/issues/{number}/comments?per_page=100')
     reviews = [review for review in github(f'repos/{repo}/pulls/{number}/reviews?per_page=100') if is_codex(review.get('user'))]
     summary = codex_summary(comments)
@@ -98,6 +121,8 @@ def codex_state(repo, number, sha):
 
     if summary and summary.get('status') == 'completed':
         reviewed = summary.get('commit_sha') or ''
+        if reviewed != sha and 'eyes' in reactions:
+            return 'reviewing', f'no answer yet, its last answer is for {reviewed[:7]}'
         if reviewed != sha:
             return 'older-commit', f'its last answer is for {reviewed[:7]}, not for this commit'
         if summary.get('has_any_findings'):
@@ -107,18 +132,18 @@ def codex_state(repo, number, sha):
     if summary or 'eyes' in reactions:
         return 'reviewing', 'no answer yet'
     if '+1' in reactions:
-        return 'approved', 'a thumbs up, with no commit named'
+        return 'approved', 'a thumbs up after the last commit'
     if reviews:
         return 'older-commit', 'its last review is for an older commit'
-    return 'absent', 'no reaction, comment or review from Codex'
+    return 'absent', 'no reaction, comment or review from Codex for this commit'
 
 
 def read(repo, number):
     pull = github(f'repos/{repo}/pulls/{number}')
     sha = pull['head']['sha']
-    commit = github(f'repos/{repo}/commits/{sha}')
-    started = max(timestamp(pull['created_at']), timestamp(commit['commit']['committer']['date']))
-    return sha, started, ci_state(repo, sha), codex_state(repo, number, sha)
+    state = 'merged' if pull.get('merged') else pull.get('state') or 'open'
+    committed = timestamp(github(f'repos/{repo}/commits/{sha}')['commit']['committer']['date'])
+    return sha, state, ci_state(repo, sha), codex_state(repo, number, sha, committed)
 
 
 def main():
@@ -140,24 +165,37 @@ def main():
 
     try:
         repo = repository()
+        sha, failed_reads = None, 0
         while True:
-            sha, started, ci, codex = read(repo, number)
-            waited = time.time() - started
+            try:
+                sha, state, ci, codex = read(repo, number)
+                failed_reads = 0
+            except (GitHubError, subprocess.TimeoutExpired):
+                # One failed answer in a long wait is not the end of it.
+                failed_reads += 1
+                if sha is None or failed_reads > FAILED_READS_ALLOWED:
+                    raise
+                time.sleep(POLL_SECONDS)
+                continue
+
+            first = first_call(repo, number, sha)
+            waited = time.time() - first
             quiet = codex[0] in NO_REVIEW_OF_THIS_COMMIT and waited >= min(QUIET_MINUTES, minutes) * 60
             known = ci[0] != 'pending' and (codex[0] in ANSWERED or quiet)
             late = waited >= minutes * 60
-            if known or late:
+            if known or late or state != 'open':
                 break
             time.sleep(POLL_SECONDS)
-    except (GitHubError, KeyError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
+    except (GitHubError, KeyError, TypeError, ValueError, AttributeError, OSError, subprocess.TimeoutExpired) as error:
         print(f'pr-wait: the pull request could not be read: {error}', file=sys.stderr)
         return 2
 
-    print(f'pull request: {repo}#{number}, commit {sha[:7]}')
+    print(f'pull request: {repo}#{number}, commit {sha[:7]}' + ('' if state == 'open' else f', {state}'))
     print(f'ci: {ci[0]} ({ci[1]})')
     print(f'codex: {codex[0]} ({codex[1]})')
-    print(f'waited: {int(time.time() - began)} s' + ('' if known else f', stopped {minutes:g} minutes after the pull request opened or its last commit'))
-    return 0 if known else 1
+    print(f'waited: {int(time.time() - began)} s'
+          + (f', stopped {minutes:g} minutes after the first call for this commit' if late and not known else ''))
+    return 0 if known and state == 'open' else 1
 
 
 if __name__ == '__main__':
