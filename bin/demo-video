@@ -16,6 +16,7 @@ max_megabytes=14
 [ "${2:-}" = "--max-mb" ] && max_megabytes="${3:-14}"
 
 if [ ! -f "$scenario" ]; then
+    [ -n "$scenario" ] && echo "demo-video: no such file: $scenario (the path is read from $(pwd))" >&2
     echo "Usage: demo-video <scenario.cjs> [--max-mb 14]" >&2
     exit 2
 fi
