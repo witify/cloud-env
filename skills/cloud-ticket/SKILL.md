@@ -31,7 +31,13 @@ From here, a run that cannot finish must say so. Push what exists, add an `Agent
 
 The parent with its comments (`list_comments`), every subtask one by one (`list_issues` with `parentId: <parent identifier>` lists them in compact rows; `get_issue` and `list_comments` on each give its description and comments), every attachment, every linked document. Compare the subtasks with the parent: a later comment on the parent wins over an older subtask.
 
-Attachments are in the `attachments` field of `get_issue` and of each comment, with absolute URLs and their `size`. Download each with `curl -fsSL -o .scratch/ticket/<id>/<name> "<url>"`, then compare the size of the file (`stat -c %s`) with that `size`. Navark serves a file only to a signed-in caller: without a credential, `curl` gets the sign-in page with a 200 and exits 0. A different size, or a 401 or 403, means the file cannot be read from this VM: delete it, name it under "Non vérifié" in the report, and when the ticket cannot be understood without it, treat it as an open question below. Use the `loom` skill for a Loom link.
+Attachments are in the `attachments` field of `get_issue` and of each comment, each with its `id`, its `name` and its `size`. Navark serves a file only to a signed-in caller, and this VM holds no Navark credential: a plain `curl` of the file's url gets the sign-in page, with a 200. So read each attachment through `create_download`, one file at a time:
+
+1. Call `create_download` with `file: "<the id of the attachment>"`. It returns `download.url`, a url signed for 10 minutes, `expiresAt`, and `curl`, a command that saves the file, with `<path>` to replace.
+2. Run that `curl` before `expiresAt`, with `<path>` replaced by `.scratch/ticket/<ticket id>/<name>`. Never add an `Authorization` header: the signature in the url is the only credential.
+3. The file is read when the last line curl prints is `HTTP 200` and its size (`stat -c %s`) is the `size` of the attachment.
+
+Any other status or size means the file was not read, and the saved file then holds a message, not the attachment: delete it. `HTTP 403` is a url that expired: start again at `create_download`, once. `HTTP 000` with `CONNECT tunnel failed, response 403` is the VM's proxy refusing a host that is not in the allowlist: do not retry it. A file that still cannot be read, or a workspace whose connector has no `create_download`, goes under "Non vérifié" in the report with the status or the error, and when the ticket cannot be understood without the file, treat it as an open question below. Use the `loom` skill for a Loom link.
 
 Put every attachment, Loom file and frame in `.scratch/ticket/<id>/`. Never commit a file from a ticket, because it can hold client data: write a fixture by hand, with invented data.
 
