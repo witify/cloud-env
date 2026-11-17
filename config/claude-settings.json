@@ -25,12 +25,14 @@
       "Bash(stat *)",
       "Bash(cloud-sync*)",
       "Bash(demo-video *)",
+      "Bash(pr-wait *)",
       "mcp__laravel-boost",
       "mcp__playwright",
       "mcp__Navark",
       "mcp__github",
       "mcp__claude-code-remote",
-      "mcp__Claude_Code_Remote"
+      "mcp__Claude_Code_Remote",
+      "Workflow"
     ]
   },
   "enabledMcpjsonServers": [

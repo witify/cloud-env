@@ -64,4 +64,7 @@ if [ "${1:-}" != "--no-restart" ]; then
     done
 fi
 
+# A run that had nothing to update still says that it ran.
+[ "$failed" = 0 ] && echo "cloud-sync: ok"
+
 exit "$failed"

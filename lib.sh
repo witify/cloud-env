@@ -224,16 +224,17 @@ fingerprint() {
     (cd "$ROOT_DIR" && cat "$@" 2>/dev/null | sha256sum | cut -d' ' -f1)
 }
 
+# Hashes the files as they are on disk, tracked or not, so a commit of code that was
+# already built does not ask for a second build.
 frontend_fingerprint() {
     (
         cd "$ROOT_DIR" || exit
         local paths=(resources modules custom lang vite.config.ts tailwind.config.js tsconfig.json package-lock.json)
-        local files=('*.vue' '*.ts' '*.js' '*.css' '*.scss' '*.json' '*.svg' '*.blade.php')
-        {
-            git ls-files -s -- "${files[@]}" | grep -E " 0\s+(resources|modules|custom|lang|vite\.config|tailwind\.config|tsconfig|package-lock)"
-            git diff HEAD -- "${paths[@]}"
-            git ls-files --others --exclude-standard -z -- "${paths[@]}" | xargs -0 -r sha256sum
-        } 2>/dev/null | sha256sum | cut -d' ' -f1
+        git ls-files -z --cached --others --exclude-standard -- "${paths[@]}" 2>/dev/null \
+            | grep -zE '\.(vue|ts|js|css|scss|json|svg|blade\.php)$' \
+            | sort -zu \
+            | xargs -0 -r sha256sum 2>/dev/null \
+            | sha256sum | cut -d' ' -f1
     )
 }
 
