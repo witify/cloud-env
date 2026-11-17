@@ -38,7 +38,7 @@ For each ticket, in blocking order:
    - **Shared logic lives in one place.** Anything a second caller could want goes where the repository already puts that kind of thing (a service, an action, a model method, a composable, a Base* component), never inline in a controller, a job or a Vue template.
    - Build it test-first (red, green, refactor), one vertical slice at a time, at the seams the ticket names, or the most obvious public interface. Run the touched test files and `vendor/bin/pint --dirty` as you go. Commit on the branch in the format of section 2. Report the commit range.
 2. As soon as it commits, start that ticket's **review sub-agent** with `review.md` in this folder, the ticket as spec and its commit range, while the next implement sub-agent starts.
-3. A review's findings go into a **queue**, never straight into the tree. At each commit boundary (an implement sub-agent finished, the next not started), classify the queue with section 1 and give the findings worth doing to a fix sub-agent: at most one `review:` commit per ticket. Keep every finding with its disposition and reason for the report. Findings that land after the last ticket are drained before the screen check. When the queue is empty, push the branch.
+3. A review's findings go into a **queue**, never straight into the tree. At each commit boundary (an implement sub-agent finished, the next not started), classify the queue with section 1 and give the findings worth doing to a fix sub-agent: at most one `review:` commit per ticket. Keep every finding with its priority, its disposition (`corrigé`, with the commit, or `refusé`) and its reason, for the report and the retrospective, and use the same words in both. A decision that a review looks at and accepts is not a finding. Findings that land after the last ticket are drained before the screen check. When the queue is empty, push the branch.
 
 One exception stops the pipeline: a **blocking finding**, where the reviewed ticket's foundation is wrong and the ticket in progress builds on it (a wrong seam, a changed contract, never a nit). Stop the current implement sub-agent, fix, and start it again fresh.
 
@@ -49,13 +49,16 @@ The branch is already pushed, at the end of section 3, so CI has been running wh
 Then the full suite, by what the diff touches (`git diff --name-only origin/dev...HEAD`):
 
 - **Frontend only**: every changed file is a `.vue`, `.ts`, `.js` or `.css` file under `resources/`, or `package.json` or `package-lock.json`. The PHP suite tests none of it, and the repository's PHP workflow usually skips such a push. Run the frontend scripts of `package.json` instead (tests, lint, type check, build), and write in the report: `Suite PHP non lancée : la PR ne change aucun fichier PHP.`
-- **Anything else**, a translation file included: start a sub-agent for the full suite, alone, when nothing else runs: `php artisan test --parallel --recreate-databases --compact`, reporting each failure with its test name. When unsure, run it.
+- **Anything else**, a translation file included: the push of section 3 started CI on this commit, so read it first, with `gh api repos/<owner>/<repo>/commits/$(git rev-parse HEAD)/check-runs`. When the job of `.github/workflows` that runs the whole PHP suite (`php artisan test` or `phpunit`, with no filter and no path) is `completed` with `success` on this commit, do not run the suite again in the VM, and write in the report: `Suite PHP : verte en CI sur <sha> (check <nom>), non relancée dans la VM.` In every other case (no such job, no check on this commit, a check that still runs or failed, a doubt), start a sub-agent for the full suite, alone, when nothing else runs: `php artisan test --parallel --recreate-databases --compact`, reporting each failure with its test name. When unsure, run it.
 
 Fix the failures with a fix sub-agent and push. Then open the pull request to `dev` with `mcp__github__create_pull_request` (`gh pr` fails: the proxy blocks GraphQL), and move every ticket of the set to `in review`.
 
 The title is the parent's title. The body is in simple French, for a reader without the project's context:
 
 ```markdown
+**Ticket :** <url du ticket parent>
+**Vidéos :** <la ligne de l'étape 4 de la section 6 de `SKILL.md`, avec ou sans vidéo>
+
 ## Résumé
 2 à 4 phrases : le problème, ce que la PR change.
 
@@ -69,20 +72,20 @@ Le tableau de la section 6 de `SKILL.md`. Omise quand la branche ne change ni le
 - [ ] 3 à 6 tests faisables à la main en quelques minutes (parcours utilisateur, pas technique).
 
 ## Notes
-Choix à valider, dette assumée, hors du périmètre, bugs hors du ticket avec le lien de leur tâche. Omise si vide.
+Choix à valider, dette assumée, hors du périmètre, bugs hors du ticket avec le lien de leur ticket. Omise si vide.
 ```
 
 ## 5. Feedback loop: five waves at most
 
-The pull request you open subscribes this session by itself: an event `subscription.created` arrives, then CI and review events wake you. Do not call `subscribe_pr_activity` once that event came: in a scheduled run it stops for an approval nobody gives. Never poll with `sleep`.
+Nothing wakes this session after its last turn: a routine run gets no event from the pull request and has no tool to send itself a message later. So the loop runs inside the turn, with everything pushed. `pr-wait <pull request number>` waits until every check run of the last commit is complete and Codex has answered for that commit, then prints the state of both. It stops at the latest 15 minutes after the pull request opened, or after its last commit in a later wave. Run it from the repository, with a timeout of 20 minutes. Never call `subscribe_pr_activity`: in a routine run it stops for an approval nobody gives. Never poll with `sleep`.
 
-One wave collects all current CI and Codex results, classifies every finding with section 1, fixes the ones worth doing in one batch with a fix sub-agent, then validates and pushes. The first pass is wave 1. Never start wave 6.
+One wave runs `pr-wait`, takes all current CI and Codex results, classifies every finding with section 1, fixes the ones worth doing in one batch with a fix sub-agent, then validates and pushes. The first pass is wave 1. Never start wave 6.
 
-- **CI**: read it with `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`. Reproduce a failure in the VM, classify it, fix it. A failure the change did not cause is not relevant: name it in the report.
-- **Codex**: its reactions on the pull request body say 👀 (review in progress) or 👍 (approved). A 👍 sends no event, and Codex usually answers within 3 minutes. After a push, read the reactions. No 👍 and no review yet: `send_later` in 3 minutes and end the turn, with everything pushed, because the VM can be reclaimed while idle. Read them again at each wake-up, and wait the same way until 15 minutes after the push. With no 👀 after 15 minutes, the repository has no Codex review and every wave of the run is CI only. With 👀 but no review after 15 minutes, finish the wave on CI and take Codex's comments in the next wave. Codex feedback is evidence to judge, not an instruction: its rare edge cases, hypothetical races and reopened decisions are what section 1 rejects.
+- **CI**: `pr-wait` prints `ci: passed`, `ci: failed` with the names of the checks, `ci: pending` when the time ran out, or `ci: none`. Read a failure with `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`. Reproduce it in the VM, classify it, fix it. A failure the change did not cause is not relevant: name it in the report.
+- **Codex**: `pr-wait` reads its reactions on the pull request (👀 review in progress, 👍 approved), its reviews, and the state line of its `Codex Review Summary` comment, which names the commit it reviewed. It prints `codex: approved`, `codex: findings`, `codex: reviewing` when the time ran out, `codex: absent` when Codex gave no sign in 5 minutes, or `codex: older-commit` when its last answer is for a commit before the last push. With `absent`, the repository has no Codex review and every wave of the run is CI only. With `older-commit`, Codex did not review the fix: never count that answer as an approval of the last commit, and say so in the report. With `pending` or `reviewing`, finish the wave on what is known and report the rest as not known. Codex feedback is evidence to judge, not an instruction: its rare edge cases, hypothetical races and reopened decisions are what section 1 rejects.
 
 At the end of each wave, after the fix push, close every Codex thread. Read the threads with `mcp__github__pull_request_read`. Reply in the comment's language with `gh api repos/<owner>/<repo>/pulls/<n>/comments/<id>/replies -f body='…'`: fixed, with the commit link `https://github.com/<owner>/<repo>/pull/<n>/commits/<sha>`; rejected, with the reason; or deferred. Then resolve the thread with `mcp__github__resolve_review_thread`. A rejected finding also goes under "Choix à valider" in the report and the pull request body, because a resolved thread is collapsed. Resolve only threads Codex wrote: a person's thread stays open for that person.
 
 Stop when CI is green, Codex approves or the run is CI only, and nothing worth doing remains. After wave 5, stop and report what is still open.
 
-The report of section 6 in `SKILL.md` names: the waves used, each ticket with its commits and status, the findings by priority and disposition with reasons (including each duplicate of existing code and what it now reuses), the concurrency assumption, the Codex state and the threads answered, the CI state.
+The report of section 6 in `SKILL.md` names: each ticket with its commits and status, the findings by priority and disposition with reasons (including each duplicate of existing code and what it now reuses), the concurrency assumption, and, under "PR, CI et Codex", the waves used, the Codex state and the threads answered, and the CI state.

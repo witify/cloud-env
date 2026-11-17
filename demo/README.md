@@ -2,9 +2,9 @@
 
 A video shows a person what changed, so it is a scripted story and not a recording of your exploration.
 
-1. Explore with the `mcp__playwright__*` tools until you know the screens and the selectors.
+1. Explore with the `mcp__playwright__*` tools until you know the screens and the selectors. Then walk the whole story once in the browser, in order, from `startPath`: a step tried alone can give another result inside the story, such as a table that keeps the direction of the last sort. Write each caption from what this walk showed, never from what you expect.
 2. Write `.scratch/demo/<name>.cjs`. Start from `/opt/cloud-env/demo/smoke.cjs`, and change the first argument of `record()` to `<name>`: it names the output files. Set `startPath` to the screen where the story starts, such as `/admin/clients/12`. Keep the story under 90 seconds, on the changed behaviour only, with captions in French.
-3. Run `demo-video .scratch/demo/<name>.cjs`. It writes `.scratch/demo/<name>.mp4` and `<name>.json`.
+3. Run `demo-video .scratch/demo/<name>.cjs` from the repository root. It writes `.scratch/demo/<name>.mp4` and `<name>.json`.
 4. Read the JSON: `steps`, `consoleErrors` and `failedRequests`. A console error or a failed request on a changed screen is a finding to fix, not noise. Then extract two frames and look at them: the first must already show the start screen, loaded, and the second confirms the video shows what you claim:
    `ffmpeg -y -ss 0.2 -i .scratch/demo/<name>.mp4 -frames:v 1 /tmp/frame-start.png`
    `ffmpeg -y -ss 8 -i .scratch/demo/<name>.mp4 -frames:v 1 /tmp/frame.png`
@@ -24,7 +24,7 @@ The video opens on `startPath`, already signed in and already loaded. The sign-i
 
 ## Before and after
 
-When a ticket changes an existing screen, record the "before" first, from the unchanged code at the start of the work: `<name>-avant.cjs`, then `<name>-apres.cjs` with the same steps. A person compares them side by side.
+When a ticket changes an existing screen, record the "before" first, from the unchanged code at the start of the work: `<name>-avant.cjs`, then `<name>-apres.cjs` with the same steps. A person compares them side by side. The before story shows only what the after story shows changed: no step for what already works. Make `<name>-apres.cjs` with `cp` from the before file, then edit the copy.
 
 ## Data the story needs
 

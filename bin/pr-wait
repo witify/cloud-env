@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""Waits for CI and Codex on a pull request, inside the turn, then prints their state.
+
+    pr-wait <pull request number> [--minutes 15]
+
+A session that ends its turn to wait needs something to wake it, and a routine run may have
+nothing: no subscription to the pull request, no tool to schedule a message. So this command
+waits instead, and the turn stays open.
+
+It returns as soon as every check run of the last commit is complete and Codex has answered for
+that commit. Codex shows a sign within seconds when it reviews a commit, so with no sign of it
+after 5 minutes the wait is for CI only. Otherwise it returns N minutes after the later of the
+pull request's creation and its last commit: a second call in the same wave does not wait again.
+
+Exit 0: both are known. Exit 1: the time ran out, and the lines say what is still pending.
+Exit 2: the pull request could not be read."""
+import datetime
+import json
+import re
+import subprocess
+import sys
+import time
+
+POLL_SECONDS = 20
+QUIET_MINUTES = 5
+ANSWERED = ('approved', 'findings')
+NO_REVIEW_OF_THIS_COMMIT = ('absent', 'older-commit')
+PASSED_CONCLUSIONS = ('success', 'neutral', 'skipped')
+CODEX_STATE = re.compile(r'codex-review-state:v\d+\s+(\{.*?\})\s*-->', re.DOTALL)
+
+
+class GitHubError(Exception):
+    pass
+
+
+def github(path):
+    result = subprocess.run(['gh', 'api', path], capture_output=True, text=True, timeout=60)
+    if result.returncode != 0:
+        raise GitHubError(result.stderr.strip()[:300] or f'gh api {path} failed')
+    try:
+        return json.loads(result.stdout)
+    except ValueError as error:
+        raise GitHubError(f'gh api {path} did not answer JSON') from error
+
+
+def repository():
+    url = subprocess.run(['git', 'remote', 'get-url', 'origin'], capture_output=True, text=True).stdout.strip()
+    match = re.search(r'[:/]([\w.-]+)/([\w.-]+?)(\.git)?/?$', url)
+    if not match:
+        raise GitHubError('the origin remote is not a GitHub repository')
+    return f'{match.group(1)}/{match.group(2)}'
+
+
+def timestamp(value):
+    return datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
+
+
+def is_codex(user):
+    return 'codex' in ((user or {}).get('login') or '').lower()
+
+
+def ci_state(repo, sha):
+    runs = github(f'repos/{repo}/commits/{sha}/check-runs?per_page=100').get('check_runs') or []
+    if not runs:
+        return 'none', 'no check run on this commit'
+
+    pending = sorted({run.get('name', '?') for run in runs if run.get('status') != 'completed'})
+    failed = sorted({run.get('name', '?') for run in runs
+                     if run.get('status') == 'completed' and run.get('conclusion') not in PASSED_CONCLUSIONS})
+    if pending:
+        return 'pending', ', '.join(pending)
+    if failed:
+        return 'failed', ', '.join(failed)
+    return 'passed', f'{len(runs)} checks'
+
+
+def codex_summary(comments):
+    """The state line Codex keeps in its summary comment, or None."""
+    for comment in reversed(comments):
+        match = is_codex(comment.get('user')) and CODEX_STATE.search(comment.get('body') or '')
+        if match:
+            try:
+                return json.loads(match.group(1)).get('code_review') or {}
+            except ValueError:
+                return None
+    return None
+
+
+def codex_state(repo, number, sha):
+    reactions = {reaction.get('content') for reaction in github(f'repos/{repo}/issues/{number}/reactions?per_page=100')
+                 if is_codex(reaction.get('user'))}
+    comments = github(f'repos/{repo}/issues/{number}/comments?per_page=100')
+    reviews = [review for review in github(f'repos/{repo}/pulls/{number}/reviews?per_page=100') if is_codex(review.get('user'))]
+    summary = codex_summary(comments)
+
+    if any(review.get('commit_id') == sha for review in reviews):
+        return 'findings', 'a review on this commit'
+
+    if summary and summary.get('status') == 'completed':
+        reviewed = summary.get('commit_sha') or ''
+        if reviewed != sha:
+            return 'older-commit', f'its last answer is for {reviewed[:7]}, not for this commit'
+        if summary.get('has_any_findings'):
+            return 'findings', 'its summary comment names findings'
+        return 'approved', 'no finding on this commit'
+
+    if summary or 'eyes' in reactions:
+        return 'reviewing', 'no answer yet'
+    if '+1' in reactions:
+        return 'approved', 'a thumbs up, with no commit named'
+    if reviews:
+        return 'older-commit', 'its last review is for an older commit'
+    return 'absent', 'no reaction, comment or review from Codex'
+
+
+def read(repo, number):
+    pull = github(f'repos/{repo}/pulls/{number}')
+    sha = pull['head']['sha']
+    commit = github(f'repos/{repo}/commits/{sha}')
+    started = max(timestamp(pull['created_at']), timestamp(commit['commit']['committer']['date']))
+    return sha, started, ci_state(repo, sha), codex_state(repo, number, sha)
+
+
+def main():
+    arguments = sys.argv[1:]
+    minutes = 15.0
+    if '--minutes' in arguments:
+        index = arguments.index('--minutes')
+        try:
+            minutes = float(arguments[index + 1])
+        except (IndexError, ValueError):
+            arguments = []
+        else:
+            del arguments[index:index + 2]
+    if len(arguments) != 1 or not arguments[0].isdigit():
+        print('Usage: pr-wait <pull request number> [--minutes 15]', file=sys.stderr)
+        return 2
+    number = arguments[0]
+    began = time.time()
+
+    try:
+        repo = repository()
+        while True:
+            sha, started, ci, codex = read(repo, number)
+            waited = time.time() - started
+            quiet = codex[0] in NO_REVIEW_OF_THIS_COMMIT and waited >= min(QUIET_MINUTES, minutes) * 60
+            known = ci[0] != 'pending' and (codex[0] in ANSWERED or quiet)
+            late = waited >= minutes * 60
+            if known or late:
+                break
+            time.sleep(POLL_SECONDS)
+    except (GitHubError, KeyError, TypeError, ValueError, subprocess.TimeoutExpired) as error:
+        print(f'pr-wait: the pull request could not be read: {error}', file=sys.stderr)
+        return 2
+
+    print(f'pull request: {repo}#{number}, commit {sha[:7]}')
+    print(f'ci: {ci[0]} ({ci[1]})')
+    print(f'codex: {codex[0]} ({codex[1]})')
+    print(f'waited: {int(time.time() - began)} s' + ('' if known else f', stopped {minutes:g} minutes after the pull request opened or its last commit'))
+    return 0 if known else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
