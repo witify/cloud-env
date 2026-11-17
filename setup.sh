@@ -252,6 +252,15 @@ prepare_application() {
 
     command -v mailpit >/dev/null || sed -i 's/^MAIL_MAILER=.*/MAIL_MAILER=log/' .env
     php artisan key:generate --force --no-interaction
+    # Passport signs personal access tokens and OAuth tokens with these keys; without them, creating a token or
+    # calling an API with one fails with "Invalid key supplied". The files are git-ignored.
+    # The list is read whole before it is matched: with pipefail, `grep -q` closing the pipe early can make
+    # artisan fail on the broken pipe, and the check would then skip the keys silently.
+    local commands
+    commands=$(php artisan list --raw 2>/dev/null)
+    if grep -q '^passport:keys' <<<"$commands"; then
+        [ -f storage/oauth-private.key ] || php artisan passport:keys --no-interaction >/dev/null
+    fi
 
     install_application || return 1
     detect_login
