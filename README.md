@@ -22,6 +22,8 @@ cloud-ticket https://navark.laravel.cloud/witify/issue/<identifier>
 
 **Fable and effort.** Add the label `agent:model:fable`, a label `agent:effort:<level>` (`low`, `medium`, `high`, `xhigh` or `max`), or both, to the issue with `agent:ready`. Its implement, review and fix sub-agents then run on Fable with the first, Anthropic's most capable model, which costs more per token than Opus, and with that effort with the second. The videos, the full suite, the screen check and the orchestration stay on the worker's model and effort, because a session cannot change its own. The report and the retrospective name the model and the effort of each piece. Only a person adds the labels. The details are in section 4 of `skills/cloud-ticket/SKILL.md`. This path is not tested in a live run yet.
 
+**Ultracode.** Add the label `agent:ultracode` to the issue, with `agent:ready`, to run the ticket with ultracode: the worker builds it with the `Workflow` tool and decides the complete flow itself, in place of one implement and one review sub-agent per ticket. The ticket, the branch, the pull request, the screen check with its videos, the report and the limits stay the same. A workflow can start many agents, so a ticket costs more this way: keep the label for the tickets that need it. Only a person adds the label, and it works with the Fable and effort labels. The details are in section 4 of `skills/cloud-ticket/SKILL.md`.
+
 A ticket with open product questions comes back to `Todo` without its labels, with the questions in a comment. A run that cannot finish does the same and says where it stopped.
 
 ## How it works
