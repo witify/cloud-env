@@ -15,6 +15,7 @@ repo.packagist.org
 ui.sprintify.app
 generator.sprintify.app
 navark.laravel.cloud
+*.r2.cloudflarestorage.com
 *.loom.com
 *.happyscribe.com
 ppa.launchpadcontent.net

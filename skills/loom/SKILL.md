@@ -62,7 +62,7 @@ Tighten `fps` around dense passages. A sweep over a remote URL decodes the whole
 When the deliverable is a Navark or Linear issue with screenshots, budget the uploads — they cost more wall-clock than the entire video analysis. Default to the **4–6 frames** that actually carry the report; attach more only when asked.
 
 - **Linear (MCP)**: strictly one file at a time — `prepare_attachment_upload` → raw `PUT` → `create_attachment_from_upload`. The signed URL dies in **60 s**, so the `PUT` must be the immediate next call, written as one minimal `curl -X PUT --data-binary @file -H <the exact signed headers> "<url>"` line; an `ExpiredToken` means re-prepare, not a failure. Uploaded assetUrls render inline in the description as `![…](assetUrl)`.
-- **Navark**: `upload_attachment` takes a public https URL (at most 25 MB) or base64 inside the call (at most 2 MB). It has no signed upload for a local file, so from a VM only a small image written as base64 works: keep frames small (scaled down, JPEG), and send the rest with `SendUserFile`.
+- **Navark**: `upload_attachment` takes a public https URL (at most 25 MB) or base64 inside the call (at most 2 MB): a small frame (scaled down, JPEG) goes there. A larger local file goes through `create_upload` (`filename`, `size` from `stat -c %s`, `contentType`) → the returned `curl` (`curl -sS -X PUT` with the exact returned headers, `--upload-file <path>`, `-w '\nHTTP %{http_code}\n'`, the single-quoted url), never with an `Authorization` header; its last line `HTTP 2xx` means stored, any other status is a refusal whose body is printed above it → `complete_upload` (`uploadId`, `issueId`, `attachTo`). Start the PUT before `expiresAt`, which grows with the size.
 
 ## 6. Report
 

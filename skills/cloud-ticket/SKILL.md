@@ -129,22 +129,38 @@ A change with no screen (a job, an import, a report) gets a proof in the report:
 ## 6. Report
 
 1. **Send the videos you have** with `SendUserFile`, status `proactive`: `.scratch/demo/<name>-avant.mp4` and `.scratch/demo/<name>-apres.mp4`, together.
-2. **Do not try to attach the videos to the ticket.** `upload_attachment` takes a public https url or the file in base64 inside the call, at most 2 MB: neither works for a video in this VM, and the VM has no public url. The videos reach a person through `SendUserFile` only. Never upload a video to another host to get a url.
+2. **Attach each video to the parent ticket**, `<name>-avant.mp4` then `<name>-apres.mp4`, one file at a time and its four steps in a row: the PUT must start before `expiresAt`. `upload_attachment` takes only a public url or a small base64 file: a video goes through `create_upload` and `complete_upload`.
+   1. Read the size in bytes: `stat -c %s .scratch/demo/<name>-apres.mp4`.
+   2. Call `create_upload` with `filename: "<name>-apres.mp4"`, `size: <that number>` and `contentType: "video/mp4"`. It returns `uploadId`, `upload` (`method`, `url`, `headers`), `expiresAt`, and `curl`, the same PUT as the command below, ready, with `<path>` to replace by the file.
+   3. Send the bytes, starting before `expiresAt`: run the returned `curl` with `<path>` replaced by the file, or write it yourself with the `method` and the `url` it returned, in single quotes because the url holds `&`, and one `-H` for each entry of `upload.headers`, nothing else:
+
+      ```bash
+      curl -sS -X PUT -H 'Content-Type: <upload.headers.Content-Type>' --upload-file .scratch/demo/<name>-apres.mp4 -w '\nHTTP %{http_code}\n' '<upload.url>'
+      ```
+
+      Never add an `Authorization` header: the signature in the url is the only credential, and a bucket refuses a request that carries two. curl exits 0 whatever the HTTP status, so read the last line it prints: `HTTP 200` (the bucket) or `HTTP 204` (Navark itself), or another `2xx`, means the bytes are stored; any other status is a refusal, whose body is printed above that line.
+   4. Call `complete_upload` with `uploadId`, `issueId: <parent identifier>` and `attachTo: "none"`. It returns `markdown`, a `/files/...` link that Navark plays inline, and `url`, the same file as an absolute url. Keep both for the description, the pull request body and the report below. An error that says the bytes were not sent means the PUT did not land.
+
+   A PUT that fails: `HTTP 000` with `CONNECT tunnel failed, response 403` is the VM's proxy refusing the bucket's host, which is not in the allowlist. Do not retry it, and name the host under "Non vérifié". Any other status, or a PUT not started before `expiresAt`: start again at `create_upload`, once. A second failure, or a `create_upload` or `complete_upload` that refuses, goes under "Non vérifié" with the status or the error, and that video stays in `SendUserFile` only. Never upload a video to another host to get a url.
 3. **Link the pull request** with `link_pull_request` on the parent. Navark links it by itself only when the GitHub integration is set up, so call it every time; when its result has a note that the workspace has no GitHub token, put that note in the report.
 4. **Update the parent ticket**. Add these lines at the top of its description with `save_issue` and `patch: [{"type": "prepend", "content": "..."}]`, never with `description`, which replaces all of it:
 
    ```markdown
    **PR :** <url>
-   **Vidéos :** <noms des fichiers>, envoyées dans la session de l'agent, non jointes au ticket
+   **Vidéos :** <markdown de la vidéo avant>, <markdown de la vidéo après>
    ```
 
-   With no video, write `**Vidéos :** aucune (<la raison, comme : pas d'écran modifié>)`.
-5. **Add the same lines to the pull request body**, with `mcp__github__update_pull_request`. A person must find the same facts from either place.
+   When this section runs again after a fix, the description already holds these lines: put the new videos in place of the old `**Vidéos :**` line with `patch: [{"type": "replace", "anchor": "<the old line>", "content": "<the new line>"}]`, never a second `prepend`.
+
+   A video that step 2 could not attach stays by its name: `<nom du fichier> (envoyée dans la session de l'agent, non jointe : <la raison>)`. With no video, write `**Vidéos :** aucune (<la raison, comme : pas d'écran modifié>)`.
+5. **Add the same lines to the pull request body**, with `mcp__github__update_pull_request`. A person must find the same facts from either place. There, write each video as `[<nom du fichier>](<url>)` with the absolute `url` of `complete_upload`: a `/files/...` link does not resolve on GitHub.
 6. Move the parent and every ticket of the set to `in review`, and remove the labels `agent:running` and `agent:ready` from the parent. Never `Done`: a person closes it after the merge. When `[PR n]` groups remain, say in the report how to start the next one: set the parent back to `todo` with the label `agent:ready`.
 7. **Add the report as a comment** that starts with `Agent :` and links the pull request. The connector writes as a person, so the prefix tells readers who wrote it. The report never goes in the description. In simple French:
 
    ```markdown
    Agent : PR ouverte : <url>
+
+   **Vidéos :** <la même ligne que dans la description>
 
    ### Écart avec la spec
    ### Schéma de base de données
@@ -170,7 +186,7 @@ A change with no screen (a job, an import, a report) gets a proof in the report:
 
    The changes are: Table ajoutée, Table supprimée, Table renommée, Colonne ajoutée, Colonne modifiée (before → after), Colonne renommée, Colonne supprimée, Index ajouté or supprimé, Clé étrangère ajoutée or supprimée, Données modifiées (a migration or a command that updates or deletes rows). Give the type, nullable and the default of each new or changed column. Say in the line when existing data is lost or rewritten. A changed migration that already exists on `dev` gets its own line, `Migration existante modifiée`, because a database that ran it will not run it again.
 8. **Write the retrospective** in `.scratch/retro/<id>-retro.md`, send it with `SendUserFile`, and add it as a second comment, `Agent : rétro`. It states facts: the timeline, the sub-agents by piece with the model and the effort each was started with, the findings by priority and disposition, what was not checked, and each problem met during the run, with what happened and what it cost. It proposes no fix and no rule change: a person reads the problems and decides.
-9. End with a notification and a short final message. Read the Codex reactions first: with 👀 and no 👍 or review yet, wait for them as `build.md` section 5 says, and send the notification when you know the Codex state, or 15 minutes after the push. It holds: PR url, the videos sent, CI state, Codex state, the sub-agents you started, by piece name from section 4, with the model and the effort when the parent has a label of section 4, the `[PR n]` groups that remain, and every check you did not do. Give no total for the sub-agents: a count from memory can be wrong. A check you did not run is reported as not run.
+9. End with a notification and a short final message. Read the Codex reactions first: with 👀 and no 👍 or review yet, wait for them as `build.md` section 5 says, and send the notification when you know the Codex state, or 15 minutes after the push. It holds: PR url, the videos sent and the videos attached, CI state, Codex state, the sub-agents you started, by piece name from section 4, with the model and the effort when the parent has a label of section 4, the `[PR n]` groups that remain, and every check you did not do. Give no total for the sub-agents: a count from memory can be wrong. A check you did not run is reported as not run.
 
 ## 7. Auto-merge
 

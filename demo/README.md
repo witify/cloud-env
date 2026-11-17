@@ -8,7 +8,7 @@ A video shows a person what changed, so it is a scripted story and not a recordi
 4. Read the JSON: `steps`, `consoleErrors` and `failedRequests`. A console error or a failed request on a changed screen is a finding to fix, not noise. Then extract two frames and look at them: the first must already show the start screen, loaded, and the second confirms the video shows what you claim:
    `ffmpeg -y -ss 0.2 -i .scratch/demo/<name>.mp4 -frames:v 1 /tmp/frame-start.png`
    `ffmpeg -y -ss 8 -i .scratch/demo/<name>.mp4 -frames:v 1 /tmp/frame.png`
-5. Stop here. Report the mp4 path, the JSON findings and what the frames show. The agent that runs the ticket sends the video.
+5. Stop here. Report the mp4 path, the JSON findings and what the frames show. The agent that runs the ticket sends the video and attaches it to the ticket.
 
 ## The recorder
 

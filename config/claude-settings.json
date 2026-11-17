@@ -22,6 +22,7 @@
       "Bash(curl *)",
       "Bash(ffmpeg *)",
       "Bash(ffprobe *)",
+      "Bash(stat *)",
       "Bash(cloud-sync*)",
       "Bash(demo-video *)",
       "mcp__laravel-boost",
