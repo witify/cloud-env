@@ -4,7 +4,7 @@ How the set of tickets becomes one reviewed pull request. It comes from `/ship` 
 
 One implement sub-agent and one review sub-agent per ticket, in blocking order, on one branch and one pull request to `dev`, then at most five feedback waves. Code that lands here reuses what the repository already has and leaves shared logic in one place.
 
-With the label `agent:ultracode` on the parent, section 3 does not apply: "Ultracode" in section 4 of `SKILL.md` says what replaces it. Sections 1, 2, 4 and 5 still apply, run with workflows.
+With the label `agent:ultracode` on the parent, section 3 does not apply, except its implement brief: "Ultracode" in section 4 of `SKILL.md` says what replaces it. Sections 1, 2, 4 and 5 still apply, run with workflows.
 
 ## 1. What gets fixed
 
@@ -14,7 +14,7 @@ A finding is **real** when evidence supports it, **relevant** when it belongs to
 
 - **A rare edge case** the project will not realistically hit: an input nobody produces, a failure behind a guard that already exists, a hardening no user benefits from.
 - **Busywork**: no observable difference to behaviour, maintainability or safety.
-- **A decision already made**: by the ticket, by the repository's guidelines, by a comment on the ticket. Say the decision stands and where it was made.
+- **A decision already made**: by the ticket or a comment on it, for what the product does; by the repository's guidelines, for how code is named, placed and written. Say the decision stands and where it was made. A name, a folder or a pattern that the ticket gives is not a decision against a documented rule of the repository (the sources of `review.md` step 3). The rule wins, also when older code next to the change breaks it, unless the ticket says in so many words that it departs from that rule. The code follows the rule, the finding that asks for it is never rejected as a decision of the ticket, and the difference goes under "Écart avec la spec" with the sentence of the ticket and the rule quoted.
 - **Concurrency the project does not need.** Most back-office apps rarely have two users on one resource at the same time. Decide this **once per run from the project's domain**, before the first such finding: read the repository's name, README, domain model and agent instructions (`CLAUDE.md`, `AGENTS.md`, `.ai/guidelines/`). An explicit statement there wins. Concurrency *is* worth doing for bookings, inventory, ticket sales, payments and ledgers, auctions, queues and dispatching, collaborative editing, a public crowd at the same moment. Write the assumption under "Choix à valider".
 
 A real bug that the ticket does not touch is not relevant here: it follows "Bugs hors du ticket" in `SKILL.md`, unless the ticket cannot work without the fix.
