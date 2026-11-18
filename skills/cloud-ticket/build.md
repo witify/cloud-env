@@ -6,6 +6,8 @@ One implement sub-agent and one review sub-agent per ticket, in blocking order, 
 
 With the label `agent:ultracode` on the parent, section 3 does not apply, except its implement brief: "Ultracode" in section 4 of `SKILL.md` says what replaces it. Sections 1, 2, 4 and 5 still apply, run with workflows.
 
+With the label `agent:adaptive` on the parent and no `agent:ultracode`, every section applies, and `adaptive.md` adds a triage before and after each implement sub-agent, more review pieces for a ticket at risk, and the `model` and the `effort` of each sub-agent.
+
 ## 1. What gets fixed
 
 **Fix everything by default.** Every finding that is real, relevant and worth doing gets fixed, at any priority.
