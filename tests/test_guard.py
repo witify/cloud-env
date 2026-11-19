@@ -107,6 +107,14 @@ class GuardTest(unittest.TestCase):
             self.assertTrue(guard_denies('mcp__github__push_files', {}, directory))
             self.assertFalse(guard_denies('mcp__github__create_pull_request', {}, directory))
 
+    def test_pull_request_replies_pass_whatever_their_body(self):
+        body = 'Agent : see /hooks/guard-bash.py, the /merge endpoint and /contents/README.md\n<!-- cloud-ticket -->'
+        with tempfile.TemporaryDirectory() as directory:
+            reply = {'owner': 'witify', 'repo': 'app', 'pullNumber': 12, 'commentId': 3, 'body': body}
+            self.assertFalse(guard_denies('mcp__github__add_reply_to_pull_request_comment', reply, directory))
+            comment = {'owner': 'witify', 'repo': 'app', 'issue_number': 12, 'body': body}
+            self.assertFalse(guard_denies('mcp__github__add_issue_comment', comment, directory))
+
     def test_remote_server_allows_only_the_pull_request_subscription(self):
         with tempfile.TemporaryDirectory() as directory:
             for server in ('mcp__claude-code-remote__', 'mcp__Claude_Code_Remote__'):
