@@ -27,7 +27,7 @@ Unlabelled findings are **P1** (blocking correctness, security, data or spec fai
 
 Every commit names its ticket. Follow the convention of the repository's recent history; when it shows none, use `<type>: <what changed> (<ticket-id>)`. Commits that apply review findings use the type `review:`, such as `review: reuse InvoiceNumber helper (WIT-52)`.
 
-Read the statuses of the workspace (`mcp__Navark__list_issue_statuses`) and pick the closest match; never invent one. Move a ticket to `in progress` in the same response that starts its implement sub-agent (in ultracode, its implement workflow), never before: a fix of the previous ticket may still be running. When the pull request opens, move every ticket of the set to `in review`. Never mark a ticket done: a person does that after the merge.
+Read the statuses of the workspace (`mcp__Navark__list_issue_statuses`) and pick the closest match; never invent one. Move a ticket to `in progress`, with `assignee: null` so the assignment for review notifies the lead (section 5), in the same response that starts its implement sub-agent (in ultracode, its implement workflow), never before: a fix of the previous ticket may still be running. When the pull request opens, move every ticket of the set to `in review`. Never mark a ticket done: a person does that after the merge.
 
 ## 3. Pipeline
 
