@@ -30,8 +30,10 @@
       "mcp__playwright",
       "mcp__Navark",
       "mcp__github",
-      "mcp__claude-code-remote",
-      "mcp__Claude_Code_Remote",
+      "mcp__claude-code-remote__subscribe_pr_activity",
+      "mcp__claude-code-remote__unsubscribe_pr_activity",
+      "mcp__Claude_Code_Remote__subscribe_pr_activity",
+      "mcp__Claude_Code_Remote__unsubscribe_pr_activity",
       "Workflow"
     ]
   },
@@ -56,7 +58,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|NotebookEdit|mcp__github__.*|mcp__.*merge.*",
+        "matcher": "Bash|Edit|Write|NotebookEdit|mcp__github__.*|mcp__.*merge.*|mcp__claude-code-remote__.*|mcp__Claude_Code_Remote__.*",
         "hooks": [
           {
             "type": "command",

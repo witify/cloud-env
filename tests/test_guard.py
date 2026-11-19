@@ -107,6 +107,26 @@ class GuardTest(unittest.TestCase):
             self.assertTrue(guard_denies('mcp__github__push_files', {}, directory))
             self.assertFalse(guard_denies('mcp__github__create_pull_request', {}, directory))
 
+    def test_remote_server_allows_only_the_pull_request_subscription(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for server in ('mcp__claude-code-remote__', 'mcp__Claude_Code_Remote__'):
+                for name in ('subscribe_pr_activity', 'unsubscribe_pr_activity', 'read_documentation'):
+                    self.assertFalse(guard_denies(server + name, {'owner': 'witify', 'repo': 'app', 'pullNumber': 12}, directory), server + name)
+                for name in ('create_session', 'create_trigger', 'update_trigger', 'fire_trigger', 'send_message',
+                             'send_later', 'update_environment', 'create_environment', 'request_credential', 'watch_url'):
+                    self.assertTrue(guard_denies(server + name, {}, directory), server + name)
+
+    def test_settings_allow_and_guard_only_the_subscription(self):
+        settings = json.loads((ROOT / 'config' / 'claude-settings.json').read_text())
+        allowed = settings['permissions']['allow']
+        self.assertNotIn('mcp__claude-code-remote', allowed)
+        self.assertNotIn('mcp__Claude_Code_Remote', allowed)
+        self.assertIn('mcp__claude-code-remote__subscribe_pr_activity', allowed)
+        self.assertIn('mcp__Claude_Code_Remote__unsubscribe_pr_activity', allowed)
+        matcher = settings['hooks']['PreToolUse'][0]['matcher']
+        for tool in ('mcp__claude-code-remote__create_session', 'mcp__Claude_Code_Remote__create_trigger'):
+            self.assertRegex(tool, f'^({matcher})$')
+
 
 class AutoMergeTest(unittest.TestCase):
     MERGE = {'owner': 'witify', 'repo': 'app', 'pullNumber': 12, 'merge_method': 'merge'}

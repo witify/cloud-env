@@ -9,6 +9,10 @@ when GitHub itself says the pull request is open, not a draft, from a feat/ or f
 and every check run of its last commit passed. The guard cannot see the Navark label: the skill
 checks it, and GitHub branch protection stays the hard limit.
 
+Of the remote session server, the worker may only subscribe to its pull request, unsubscribe,
+and read the documentation. Starting sessions, scheduled tasks or messages, and changing the
+environment, stay out of reach of a session that reads untrusted text.
+
 This stops mistakes and casual injections. It reads command text, so git-hooks/pre-push backs it
 up on real pushes, and only GitHub branch protection is a hard limit."""
 import json
@@ -47,6 +51,9 @@ AUTO_MERGE_BASE = 'dev'
 AUTO_MERGE_HEADS = ('feat/', 'fix/')
 PASSED_CONCLUSIONS = ('success', 'neutral', 'skipped')
 
+REMOTE_SERVERS = ('mcp__claude-code-remote__', 'mcp__Claude_Code_Remote__')
+REMOTE_ALLOWED_TOOLS = ('subscribe_pr_activity', 'unsubscribe_pr_activity', 'read_documentation')
+
 GITHUB_FORBIDDEN_TOOLS = ('merge', 'push_files', 'create_or_update_file', 'delete_file', 'run_workflow', 'run_trigger', 'create_repository', 'fork_repository')
 
 MERGE_REASON = 'Merging stays with a person, after review.'
@@ -58,6 +65,8 @@ WORKFLOW_REASON = 'CI workflows run on a self-hosted machine: a change there nee
 HOOK_REASON = 'The git hooks of this VM stay on.'
 GUARD_REASON = 'The guard of this VM is not editable from a session. Say what must change in the report.'
 GITHUB_REASON = 'Write with git on a feature branch and open a pull request. This call goes around the push rules.'
+REMOTE_REASON = ('This session may only subscribe to its pull request, unsubscribe, and read the documentation. '
+                 'Sessions, scheduled tasks, messages and the environment stay with a person. Say what is needed in the report.')
 
 
 def deny(reason):
@@ -210,6 +219,10 @@ def main():
     tool = event.get('tool_name', '')
     tool_input = event.get('tool_input') or {}
 
+    if tool.startswith(REMOTE_SERVERS):
+        if tool.split('__', 2)[2] not in REMOTE_ALLOWED_TOOLS:
+            deny(REMOTE_REASON)
+        return
     if tool == AUTO_MERGE_TOOL:
         problem = auto_merge_problem(tool_input)
         if problem:
