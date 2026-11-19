@@ -129,7 +129,7 @@ install_browser_tools() {
 link_commands() {
     local name
 
-    for name in herd cloud-sync composer-install demo-video pr-wait; do
+    for name in herd cloud-sync composer-install demo-video pr-status; do
         chmod +x "$CLOUD_DIR/bin/$name"
         ln -sf "$CLOUD_DIR/bin/$name" "/usr/local/bin/$name"
     done

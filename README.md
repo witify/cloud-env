@@ -38,7 +38,7 @@ A ticket with open product questions comes back to `Todo` without its labels, wi
 | `session-start.sh`, `session-context.md` | A hook in the VM's `~/.claude/settings.json`, at every session start and resume. Starts the services, runs `cloud-sync`, gives the agent its context |
 | `bin/cloud-sync` | After every checkout. Updates only what changed: Composer, npm, migrations, assets. Then restarts the workers, checks that they are up, and says `FAILED` for a step or a worker that did not work |
 | `bin/demo-video`, `demo/` | When an agent records a video |
-| `bin/pr-wait` | After the pull request opens, and after each fix push. Waits inside the turn for the check runs and for Codex, then prints their state |
+| `bin/pr-status` | At each wake of the pull request's autofix. Reads once, without waiting, the check runs of the last commit and whether Codex approved it |
 | `hooks/guard-bash.py`, `git-hooks/pre-push` | Before every command and every push. Refuse a merge, a push to a release branch, a branch deletion, a change to `.github/workflows`. Let through one merge: a pull request from a `feat/` or `fix/` branch into `dev` whose checks all passed, for the auto-merge |
 | `skills/cloud-ticket` | The ticket flow: `SKILL.md`, the build and its feedback loop (`build.md`), the review brief (`review.md`), the adaptive mode (`adaptive.md`) and the text every sub-agent reads first (`brief.md`). It lives here, with the scripts it calls, so one version number covers both |
 | `skills/loom` | Reads a Loom video of a ticket |
@@ -95,7 +95,7 @@ When the clone of this repository fails, the setup script exits 1 and the sessio
 
 ## The scheduled tasks
 
-They belong to one account. Give each task only the connectors it needs: the worker gets `Navark` and `Sentry`, the check gets `Navark`.
+They belong to one account. Give each task only the connectors it needs: the worker gets `Navark`, `Sentry` and `Claude_Code_Remote` (its `subscribe_pr_activity` runs the autofix of the pull request), the check gets `Navark`.
 
 | Task | Model | Environment | Repository | Trigger | Prompt |
 |---|---|---|---|---|---|
@@ -151,7 +151,7 @@ These limits decide this shape, all seen in live tests:
 - A run of a scheduled task has no `fire_trigger` tool, whether the task was created through the API or with the `create_trigger` tool. So the check starts the worker through the worker's API trigger, with `curl` and the token.
 - A session started with `create_session` from a scheduled task stops at every tracker call for a person to approve. A run of a scheduled task does not. So the ticket work runs in the worker, not in a session the check starts.
 - A task created with the `create_trigger` tool gets no connector and no repository. Set them on the web after the create.
-- Nothing wakes a worker after its last turn. In a run started through the API trigger, no pull request event reached the session, it had no `send_later` tool, and `subscribe_pr_activity` through the `Claude_Code_Remote` connector stops for an approval. So the worker waits for CI and Codex inside its turn, with `pr-wait`.
+- The worker answers the pull request with Claude's native autofix: it calls `subscribe_pr_activity` when the pull request opens, ends its turn, and each CI result, Codex review or comment of a person wakes it for one wave that handles everything open, with no limit on the number of waves. It unsubscribes when the pull request is merged or closed. An earlier live test, in a run started through the API trigger, saw `subscribe_pr_activity` stop for an approval and no pull request event reach the session: when the call does not succeed, the worker says `PR non surveillée` in its report and its notification. Until a live run proves it, also check that a Codex approval given only with a thumbs up wakes the worker; otherwise the next event reads it.
 - The check matches `agent:running`, not `agent:ready`, for stuck runs: a worker can leave `agent:ready` on an issue it moved to `In Progress`.
 
 ## Change it

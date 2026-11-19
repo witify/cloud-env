@@ -1,36 +1,29 @@
 #!/usr/bin/env python3
-"""Waits for CI and Codex on a pull request, inside the turn, then prints their state.
+"""Prints the state of CI and Codex on the last commit of a pull request, once, without waiting.
 
-    pr-wait <pull request number> [--minutes 15]
+    pr-status <pull request number>
 
-A session that ends its turn to wait needs something to wake it, and a routine run may have
-nothing: no subscription to the pull request, no `send_later` tool. So this command waits
-instead, and the turn stays open.
+The pull request is watched by Claude's native autofix (`subscribe_pr_activity`): CI results,
+Codex reviews and people's comments wake the session. This command only reads, at each wake, what
+an event does not say in full: whether every check run of the last commit passed, and whether
+Codex approved that commit, which it often says with a thumbs up or the state line of its summary
+comment.
 
-It returns as soon as every check run of the last commit is complete and Codex has answered for
-that commit. Codex shows a sign within seconds when it reviews a commit, so with no sign of it
-after 5 minutes the wait is for CI only. Otherwise it returns N minutes after its first call for
-that commit: a second call in the same wave does not wait again.
+Codex shows a sign within seconds when it reviews a commit: with no sign of it on a commit older
+than 5 minutes, the repository has no Codex review (`absent`), and before that it is `waiting`.
 
-Exit 0: both are known. Exit 1: the time ran out, or the pull request is closed or merged, and
-the lines say what is still pending. Exit 2: the pull request could not be read."""
+Exit 0: the state was read. Exit 2: the pull request could not be read."""
 import datetime
 import json
-import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 
-POLL_SECONDS = 20
 QUIET_MINUTES = 5
-FAILED_READS_ALLOWED = 3
 PASSED_CONCLUSIONS = ('success', 'neutral', 'skipped')
-ANSWERED = ('approved', 'findings')
 NO_REVIEW_OF_THIS_COMMIT = ('absent', 'older-commit')
 CODEX_STATE = re.compile(r'codex-review-state:v\d+\s+(\{.*?\})\s*-->', re.DOTALL)
-STATE_DIRECTORIES = (os.environ.get('PR_WAIT_STATE_DIR'), '/var/lib/cloud-env', tempfile.gettempdir())
 
 
 class GitHubError(Exception):
@@ -57,23 +50,6 @@ def repository():
 
 def timestamp(value):
     return datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
-
-
-def first_call(repo, number, sha):
-    """When this command first saw this commit: the wait counts from there, in every wave."""
-    name = 'pr-wait-' + re.sub(r'\W', '-', f'{repo}-{number}')
-    for directory in filter(None, STATE_DIRECTORIES):
-        path = os.path.join(directory, name)
-        try:
-            seen = json.load(open(path)) if os.path.exists(path) else {}
-            if sha not in seen:
-                seen = {sha: time.time()}
-                with open(path, 'w') as file:
-                    json.dump(seen, file)
-            return float(seen[sha])
-        except (OSError, ValueError, TypeError):
-            continue
-    return time.time()
 
 
 def is_codex(user):
@@ -143,59 +119,31 @@ def read(repo, number):
     sha = pull['head']['sha']
     state = 'merged' if pull.get('merged') else pull.get('state') or 'open'
     committed = timestamp(github(f'repos/{repo}/commits/{sha}')['commit']['committer']['date'])
-    return sha, state, ci_state(repo, sha), codex_state(repo, number, sha, committed)
+    codex = codex_state(repo, number, sha, committed)
+    age = (time.time() - committed) / 60
+    if codex[0] in NO_REVIEW_OF_THIS_COMMIT and age < QUIET_MINUTES:
+        codex = 'waiting', f'no sign yet, the last commit is {int(age)} minutes old ({codex[1]})'
+    return sha, state, ci_state(repo, sha), codex
 
 
 def main():
     arguments = sys.argv[1:]
-    minutes = 15.0
-    if '--minutes' in arguments:
-        index = arguments.index('--minutes')
-        try:
-            minutes = float(arguments[index + 1])
-        except (IndexError, ValueError):
-            arguments = []
-        else:
-            del arguments[index:index + 2]
     if len(arguments) != 1 or not arguments[0].isdigit():
-        print('Usage: pr-wait <pull request number> [--minutes 15]', file=sys.stderr)
+        print('Usage: pr-status <pull request number>', file=sys.stderr)
         return 2
     number = arguments[0]
-    began = time.time()
 
     try:
         repo = repository()
-        sha, failed_reads = None, 0
-        while True:
-            try:
-                sha, state, ci, codex = read(repo, number)
-                failed_reads = 0
-            except (GitHubError, subprocess.TimeoutExpired):
-                # One failed answer in a long wait is not the end of it.
-                failed_reads += 1
-                if sha is None or failed_reads > FAILED_READS_ALLOWED:
-                    raise
-                time.sleep(POLL_SECONDS)
-                continue
-
-            first = first_call(repo, number, sha)
-            waited = time.time() - first
-            quiet = codex[0] in NO_REVIEW_OF_THIS_COMMIT and waited >= min(QUIET_MINUTES, minutes) * 60
-            known = ci[0] != 'pending' and (codex[0] in ANSWERED or quiet)
-            late = waited >= minutes * 60
-            if known or late or state != 'open':
-                break
-            time.sleep(POLL_SECONDS)
+        sha, state, ci, codex = read(repo, number)
     except (GitHubError, KeyError, TypeError, ValueError, AttributeError, OSError, subprocess.TimeoutExpired) as error:
-        print(f'pr-wait: the pull request could not be read: {error}', file=sys.stderr)
+        print(f'pr-status: the pull request could not be read: {error}', file=sys.stderr)
         return 2
 
     print(f'pull request: {repo}#{number}, commit {sha[:7]}' + ('' if state == 'open' else f', {state}'))
     print(f'ci: {ci[0]} ({ci[1]})')
     print(f'codex: {codex[0]} ({codex[1]})')
-    print(f'waited: {int(time.time() - began)} s'
-          + (f', stopped {minutes:g} minutes after the first call for this commit' if late and not known else ''))
-    return 0 if known and state == 'open' else 1
+    return 0
 
 
 if __name__ == '__main__':
