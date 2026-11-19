@@ -14,7 +14,7 @@ With `--wait`, it reads every 20 seconds until CI is no longer pending and Codex
 that commit, or shows no sign of it once the quiet window has passed. It also stops when the pull
 request is no longer open, or `--minutes` after this call started. It exists for the gaps no event
 fills: a thumbs up from Codex sends no event, and nothing marks the end of the quiet window. It is
-also the loop of a run that could not subscribe to the pull request.
+also the loop of phase 1, in the turn that opens the pull request.
 
 The last commit counts as pushed at the latest of its committer date, the creation of the pull
 request and the first check suite of that commit. Codex shows a sign within seconds when it
