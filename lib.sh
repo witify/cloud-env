@@ -13,6 +13,8 @@ PROJECT_FILE=".claude/cloud.sh"
 INSTALLED_PROJECT_FILE="$STATE_DIR/project.sh"
 DETECTED_FILE="$STATE_DIR/detected.sh"
 ROOT_DIR_FILE="$STATE_DIR/root-dir"
+# The values the tools of a flow read (README, "The flow"). Its path and its keys are a contract with Navark.
+VALUES_FILE="$STATE_DIR/values.sh"
 
 mkdir -p "$STATE_DIR" "$LOG_DIR"
 
@@ -70,6 +72,31 @@ load_project_values
 
 log() {
     printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"
+}
+
+# Single quotes, inside which a shell interprets nothing; a single quote itself is closed, escaped, reopened.
+shell_quote() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+# Writes the values the tools of a flow read, in place of sourcing this file: the flow comes from Navark
+# (`get_flow`) and must not depend on how cloud-env is laid out. One `KEY='value'` line per key, for any
+# POSIX shell to source. Rewritten at every session start, so a change in .claude/cloud.sh reaches it.
+# Adding a key is compatible; renaming or removing one needs a new CLOUD_ENV_VALUES_VERSION and a flow that
+# reads both.
+write_flow_values() {
+    local CLOUD_ENV_VALUES_VERSION=1
+    # require('playwright') resolves from here, as in the agent's own environment (config/claude-settings.json).
+    local NODE_PATH="${NODE_PATH:-/opt/node22/lib/node_modules}"
+    local name temporary
+
+    temporary="$(mktemp "$STATE_DIR/values.XXXXXX")" || return 1
+    {
+        echo "# Written by cloud-env at every session start, for the tools of the flow. Do not edit."
+        for name in CLOUD_ENV_VALUES_VERSION ROOT_DIR SITE_URL SITE_LOGIN_PATH SITE_LOGIN_EMAIL SITE_LOGIN_PASSWORD SITE_LANDING_PATH NODE_PATH; do
+            printf '%s=%s\n' "$name" "$(shell_quote "${!name-}")"
+        done
+    } >"$temporary" && chmod 600 "$temporary" && mv -f "$temporary" "$VALUES_FILE"
 }
 
 # Runs a step, keeps its output in a log and records the elapsed seconds, so a

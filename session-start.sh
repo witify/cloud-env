@@ -20,6 +20,8 @@ if [ ! -f "$STATE_DIR/setup-finished-at" ]; then
 fi
 
 problems=""
+# The tools of the flow read these values (README, "The flow").
+write_flow_values || problems="$problems values($VALUES_FILE)"
 start_mysql || problems="$problems mysql"
 start_redis || problems="$problems redis"
 start_web || problems="$problems web"

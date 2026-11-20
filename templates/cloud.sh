@@ -12,8 +12,8 @@
 # A value that detection gets wrong. Any value or function in defaults.sh can go here.
 # MYSQL_VERSION="8.4"
 
-# Notes for the agent. Two optional lines set the `agent:adaptive` mode of the cloud-ticket skill
-# for this project (skills/cloud-ticket/adaptive.md). Add them to the text below, as written here:
+# Notes for the agent. Two optional lines set the `agent:adaptive` mode of the ticket flow for this
+# project (adaptive.md of the flow Navark serves). Add them to the text below, as written here:
 #   - Adaptive floor: medium
 #   - Adaptive sensitive zones: app/Billing, app/Payments
 project_context() {

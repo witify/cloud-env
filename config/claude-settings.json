@@ -24,8 +24,10 @@
       "Bash(ffprobe *)",
       "Bash(stat *)",
       "Bash(cloud-sync*)",
-      "Bash(demo-video *)",
-      "Bash(pr-status *)",
+      "Bash(.scratch/flow/bin/*)",
+      "Bash(./.scratch/flow/bin/*)",
+      "Bash(.scratch/flow/core/bin/*)",
+      "Bash(./.scratch/flow/core/bin/*)",
       "mcp__laravel-boost",
       "mcp__playwright",
       "mcp__Navark",
@@ -54,6 +56,15 @@
             "timeout": 600
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py SessionStart",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -63,6 +74,71 @@
           {
             "type": "command",
             "command": "python3 -I __CLOUD_DIR__/hooks/guard-bash.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py Stop",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py SubagentStart",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py SubagentStop",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py PreCompact",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py PostCompact",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I __CLOUD_DIR__/hooks/flow-hook.py SessionEnd"
           }
         ]
       }

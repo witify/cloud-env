@@ -129,7 +129,7 @@ install_browser_tools() {
 link_commands() {
     local name
 
-    for name in herd cloud-sync composer-install demo-video pr-status; do
+    for name in herd cloud-sync composer-install; do
         chmod +x "$CLOUD_DIR/bin/$name"
         ln -sf "$CLOUD_DIR/bin/$name" "/usr/local/bin/$name"
     done
@@ -152,10 +152,6 @@ install_skills() {
     local entry repository folders folder directory target failed=0
 
     mkdir -p /root/.claude/skills
-
-    for directory in "$CLOUD_DIR"/skills/*/; do
-        link_skill "${directory%/}"
-    done
 
     for entry in $SKILL_REPOSITORIES; do
         repository="${entry%%|*}"
