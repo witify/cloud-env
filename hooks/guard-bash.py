@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse guard for the cloud VM. Tickets, PDFs and web pages are untrusted input, and a
 cloud session acts with a person's GitHub identity, so what must stay a human decision is
-refused here and not left to the model: merging, and writing to the release branches.
+refused here and not left to the model: merging and writing to the release branches.
 
 One merge is let through, for a ticket a person labelled `agent:auto-merge`: mcp__github__merge_pull_request,
 when GitHub itself says the pull request is open, not a draft, from a feat/ or fix/ branch into dev,

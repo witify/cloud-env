@@ -204,7 +204,6 @@ class PrePushTest(unittest.TestCase):
         self.git('config', 'user.name', 'x')
         self.git('config', 'commit.gpgsign', 'false')
         self.commit('a.txt', 'base')
-        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
 
     def git(self, *arguments):
         return subprocess.run(['git', *arguments], cwd=self.directory.name, capture_output=True, text=True, check=True).stdout.strip()
