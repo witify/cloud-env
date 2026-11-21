@@ -14,6 +14,7 @@ packagist.org
 repo.packagist.org
 ui.sprintify.app
 generator.sprintify.app
+navark.app
 navark.laravel.cloud
 fls-a3376286-0fef-4456-962b-b00b2b1f17c9.367be3a2035528943240074d0096e0cd.r2.cloudflarestorage.com
 *.loom.com
