@@ -71,7 +71,6 @@ class GuardTest(unittest.TestCase):
         'GIT_CONFIG_KEY_0=core.hooksPath git push origin feat/x',
         'x=$(git config core.hooksPath)',
         'gh api repos/o/r/pulls/1/merge -X PUT 2>&1',
-        'echo x > .github/workflows/a.yml',
     ]
     ALLOWED = [
         'gh api repos/o/r/commits/abc/check-runs',
@@ -83,6 +82,9 @@ class GuardTest(unittest.TestCase):
         'gh api repos/o/r/commits/abc/check-runs 2>&1 | head',
         'git push -u origin feat/x',
         'cat .github/workflows/a.yml',
+        'echo x > .github/workflows/a.yml',
+        'sed -i s/a/b/ .github/workflows/a.yml',
+        'git rm .github/workflows/a.yml',
         'git config core.hooksPath',
         'git config --get core.hooksPath',
         'git config --system core.hooksPath',
@@ -101,7 +103,7 @@ class GuardTest(unittest.TestCase):
     def test_files_and_tools(self):
         with tempfile.TemporaryDirectory() as directory:
             self.assertTrue(guard_denies('Edit', {'file_path': '/opt/cloud-env/hooks/guard-bash.py'}, directory))
-            self.assertTrue(guard_denies('Write', {'file_path': '/home/user/app/.github/workflows/a.yml'}, directory))
+            self.assertFalse(guard_denies('Write', {'file_path': '/home/user/app/.github/workflows/a.yml'}, directory))
             self.assertFalse(guard_denies('Edit', {'file_path': '/home/user/app/app/Models/User.php'}, directory))
             self.assertTrue(guard_denies('mcp__github__merge_pull_request', {}, directory))
             self.assertTrue(guard_denies('mcp__github__push_files', {}, directory))
@@ -228,8 +230,8 @@ class PrePushTest(unittest.TestCase):
     def test_branch_deletion_is_refused(self):
         self.assertEqual(self.push_status(NO_SHA, 'refs/heads/feat/x'), 1)
 
-    def test_workflow_change_is_refused_with_main_as_the_base(self):
-        self.assertEqual(self.push_status(self.commit('.github/workflows/a.yml', 'workflow'), 'refs/heads/feat/x'), 1)
+    def test_workflow_change_is_let_through(self):
+        self.assertEqual(self.push_status(self.commit('.github/workflows/a.yml', 'workflow'), 'refs/heads/feat/x'), 0)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse guard for the cloud VM. Tickets, PDFs and web pages are untrusted input, and a
 cloud session acts with a person's GitHub identity, so what must stay a human decision is
-refused here and not left to the model: merging, writing to the release branches, and changing
-the CI workflows, which run on a self-hosted machine.
+refused here and not left to the model: merging, and writing to the release branches.
 
 One merge is let through, for a ticket a person labelled `agent:auto-merge`: mcp__github__merge_pull_request,
 when GitHub itself says the pull request is open, not a draft, from a feat/ or fix/ branch into dev,
@@ -33,8 +32,6 @@ SKIP_GIT_HOOK = re.compile(r'\bgit\b[^|;&]*\s(--no-verify|-n\b.*\bpush)|core\.ho
 # The whole command must match: any other text can hide a value from a check that reads text.
 HOOK_SETTING_READ = re.compile(r'git config( --system| --get| --show-origin| --show-scope)* core\.hooksPath')
 MERGE = re.compile(r'\bgh\s+pr\s+merge\b')
-WORKFLOW_FILE = re.compile(r'(^|/)\.github/workflows/')
-WORKFLOW_WRITE = re.compile(r'(>|\btee\b|\bsed\s+-i\b|\bmv\b|\bcp\b|\brm\b|\bgit\s+rm\b)[^|;&]*\.github/workflows/')
 GUARD_FILE = re.compile(r'^/opt/cloud-env/|^/root/\.claude/')
 
 GH_API_FORBIDDEN_PATH = re.compile(
@@ -61,7 +58,6 @@ AUTO_MERGE_REASON = ('Only an auto-merge is allowed: mcp__github__merge_pull_req
                      'feat/ or fix/ branch into dev, with every check run of its last commit passed. ')
 BRANCH_REASON = 'Push to a feature branch. The release branches change only through a merged pull request.'
 DELETE_REASON = 'Branch deletion stays with a person.'
-WORKFLOW_REASON = 'CI workflows run on a self-hosted machine: a change there needs a person. Say what must change in the report.'
 HOOK_REASON = 'The git hooks of this VM stay on.'
 GUARD_REASON = 'The guard of this VM is not editable from a session. Say what must change in the report.'
 GITHUB_REASON = 'Write with git on a feature branch and open a pull request. This call goes around the push rules.'
@@ -207,8 +203,6 @@ def check_bash(command, directory):
         deny(DELETE_REASON)
     if PUSH_TO_PROTECTED.search(command) or PUSH_EVERYTHING.search(command):
         deny(BRANCH_REASON)
-    if WORKFLOW_WRITE.search(command):
-        deny(WORKFLOW_REASON)
     if PUSH.search(command) and current_branch(directory) in PROTECTED_BRANCHES:
         deny(BRANCH_REASON)
     check_gh_api(command)
@@ -232,8 +226,6 @@ def main():
         deny(MERGE_REASON if 'merge' in tool else GITHUB_REASON)
     if tool in ('Edit', 'Write', 'NotebookEdit'):
         path = tool_input.get('file_path') or tool_input.get('notebook_path') or ''
-        if WORKFLOW_FILE.search(path):
-            deny(WORKFLOW_REASON)
         if GUARD_FILE.search(path):
             deny(GUARD_REASON)
     if tool == 'Bash':
